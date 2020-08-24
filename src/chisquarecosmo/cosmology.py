@@ -9,9 +9,6 @@ It is based on Planck 2015 Cosmological Parameters report
 (arXiv:1502.01589) table 3 column 1:
 "Planck + TT + lowP".
 
-MAIN UPDATE 12.xii.19: BASE COSMOLOGY HAS BEEN CHANGED  from
-Planck TT + TE + EE + lowP to
-Planck TT + lowP
 -----------------------------------------
 1502.01589 (Cosmological parameters)
 1502.01590 (DE & MG)
@@ -121,7 +118,7 @@ class Likelihood:
         return chi_square
 
 
-# Type hint for the unique CMB "theory" function.
+# Type hint for the  CMB chi2 function.
 T_CMBLikelihoodTheoryFunc = t.Callable[[Params], np.ndarray]
 
 
@@ -472,7 +469,7 @@ class Model(metaclass=ABCMeta):
                 1.7382 - r_cmb(params),
                 301.63 - l_a(params),
                 0.02262 - omegabh2,
-                # 0.9741 - 0.97415  # added to include full matrix
+                # 0.9741 - 0.97415
             ])
             return y_cmb
 
@@ -481,6 +478,8 @@ class Model(metaclass=ABCMeta):
 
 @dataclass
 class DatasetUnion(t.Iterable):
+    ### T0DO: refactor this class to avoid phrasing 'Union'
+    ### Idea: DatasetJoin ?
     """Represent the union of several datasets."""
     datasets: t.List[Dataset]
 
