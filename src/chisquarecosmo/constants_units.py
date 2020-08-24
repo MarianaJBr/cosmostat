@@ -65,17 +65,17 @@ RHODE0 = OMEGADE * RHOCR0
 
 # --------------------------------------------------------------------#
 # --------------------------------------------------------------------#
-# ========= Planck 2015 DE & MG paper Sect'n 5.1.6
+#
 # DMATCMB: is the normalized matrix for R, l_A and omegab (with/without ns)
 # Table 4 from Planck 2015 DE&MG paper
-# We're using the values assuming Planck TT + lowP and marginalizing over A_L
+# Planck TT + lowP and marginalizing over A_L
 
 #
 DMATCMB_AL_3 = np.array(
     [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]])
 ERRCMB_AL_3 = np.array([0.0088, 0.15, 0.00029])
 
-# Update feb 12 2020: add the full matrix / to extend it to include ns
+# Update feb 12 2020: add the full matrix  to include ns
 # 4x4 matrix
 DMATCMB_AL_4 = np.array(
     [[1.0, 0.64, -0.75, -0.89], [0.64, 1.0, -0.55, -0.57],
@@ -85,10 +85,4 @@ ERRCMB_AL_4 = np.array([0.0088, 0.15, 0.00029, 0.0072])
 COVMATCMB_3 = DMATCMB_AL_3 * ERRCMB_AL_3 * ERRCMB_AL_3[:, np.newaxis]
 COVMATCMB_4 = DMATCMB_AL_4 * ERRCMB_AL_4 * ERRCMB_AL_4[:, np.newaxis]
 
-# --------------------------------------------------------------------#
-# base_TTTEEE_lowl_plik.covmat from COSMOMC 2015
-COVMATCMB_OLD = np.array([[23.52482, -2.207815], [-2.207815, 1.063561]]) * 1e-7
-COVMATCMB10e7_OLD = np.array([[23.52482, -2.207815], [-2.207815, 1.063561]])
-INVCOVMATCMB_OLD = np.linalg.inv(COVMATCMB_OLD)
-INVCOVMATCMB10e7_OLD = np.linalg.inv(COVMATCMB10e7_OLD)
-# COVMATCMB_wrong = ERRCMB_Al * ERRCMB_Al * DMATCMB_Al
+
