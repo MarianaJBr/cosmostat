@@ -1,0 +1,23 @@
+# Default conda environment.
+# Use conda env create -f default.yml to create this development environment.
+name: chisquarecosmo-dev
+# We need some packages from conda-forge.
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - numpy
+  - scipy
+  - matplotlib
+  - numba
+  - h5py
+  - jupyter
+  - notebook
+  - jupyterlab
+  - dask
+  - toolz
+  - pytest
+  - click
+  - dataclasses
+  - rich
