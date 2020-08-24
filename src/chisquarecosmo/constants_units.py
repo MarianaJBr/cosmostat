@@ -1,7 +1,7 @@
 # # # Copyright Mariana Jaber
 #     TODO: add license statement
 # -----------------------------------------
-#
+#   \\\\\     BASIC CONSTANTS        \\\\\\
 # -----------------------------------------
 
 import numpy as np
@@ -20,7 +20,7 @@ MPLANCK_REDUCED = MPLANCK * np.sqrt(8 * PI * G)
 
 # CMB Temperature in K
 TG0 = 2.7255
-NEFF = 3.13  # 3.046 vanilla  # 3.13 (eqn. 60a-60d, arXiv:1502.01589)
+NEFF = 3.13  # 3.046   # 3.13 (from eqn. 60a-60d, arXiv:1502.01589)
 THETHADEC = 1.04105e-2
 TAU = 0.079
 ZDRAG = 1059.57
@@ -40,7 +40,7 @@ RHOR0 = (1 + NEFF * 7. / 8. * (4. / 11.) ** (
     C * HBAR)) ** 4
 
 # ------------------------------
-# The default value of the physical densities:
+# \\\\  The default value of the physical densities \\\\\\\\
 # Planck's Cosmological parameters report
 # # # 1502.01589 (Cosmological parameters)
 # # # 1502.01590 (DE & MG)
@@ -64,12 +64,11 @@ RHOM0 = OMEGAM0 * RHOCR0
 RHODE0 = OMEGADE * RHOCR0
 
 # --------------------------------------------------------------------#
-# --------------------------------------------------------------------#
 #
 # DMATCMB: is the normalized matrix for R, l_A and omegab (with/without ns)
-# Table 4 from Planck 2015 DE&MG paper
+# Table 4 arXiv:1502.01590
 # Planck TT + lowP and marginalizing over A_L
-
+# --------------------------------------------------------------------#
 #
 DMATCMB_AL_3 = np.array(
     [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]])
