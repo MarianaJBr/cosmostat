@@ -1,15 +1,7 @@
-# # # Mariana Jaber  2017(2018)(2019)
-#     This part of the program contains the basic cosmological constants
-#     It is based on Planck 2015 Cosmological Parameters report
-#     (arXiv:1502.01589) table 3 column 1:
-#     "Planck + TT + lowP".
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# # # MAIN UPDATE 12.xii.19: BASE COSMOLOGY HAS BEEN CHANGED  from
-# # # Planck TT + TE + EE + lowP to
-# # # Planck TT + lowP
+# # # Copyright Mariana Jaber
+#     TODO: add license statement
 # -----------------------------------------
-# # # 1502.01589 (Cosmological parameters)
-# # # 1502.01590 (DE & MG)
+#
 # -----------------------------------------
 
 import numpy as np
@@ -17,16 +9,16 @@ import numpy as np
 PI = np.pi
 C = 299792458.
 HBAR = 6.62606896 / (2 * PI) * 1e-34
-E = 1.6021773 * 1e-19  # electron unit charge
+E = 1.6021773 * 1e-19  # Electron unit charge
 G = 6.6738 * 1e-11  # Newton's gravity constant
-MPC = 3.085678 * 1e22  # Mpc-meters
+MPC = 3.085678 * 1e22  # Mpc-to-meters
 KBOLTZ = 1.3806504 * 1e-23
 
-# Masa  de Planck y masa reducida de Planck en eV
+# Planck's mass & Reduced Planck's mass in eV
 MPLANCK = np.sqrt(HBAR * C / (8 * PI * G)) * C ** 2 / E
 MPLANCK_REDUCED = MPLANCK * np.sqrt(8 * PI * G)
 
-# temperatura del CMB (en Kelvin), neutrinos
+# CMB Temperature in K
 TG0 = 2.7255
 NEFF = 3.13  # 3.046 vanilla  # 3.13 (eqn. 60a-60d, arXiv:1502.01589)
 THETHADEC = 1.04105e-2
@@ -37,20 +29,21 @@ ZDEC = 1090.09
 # Hubble parameter:
 REDUCED_H0 = 0.6731
 H0 = (REDUCED_H0 * 1e5) / C
-# constante que aparece en los calculos
 H0P = (100 * 1e3) / 2.99792458e+8
 
-# critical density
+# Critical density
 RHOCR0 = 3 * (REDUCED_H0 * MPLANCK * E * MPC * 10 ** 5 / (C ** 2 * HBAR)) ** 2
 
-# today's value of radiation density
+# Radiation density
 RHOR0 = (1 + NEFF * 7. / 8. * (4. / 11.) ** (
     4. / 3.)) * PI ** 2 / 15. * TG0 ** 4 * (KBOLTZ * MPC / (
     C * HBAR)) ** 4
 
 # ------------------------------
-# The default value of the physical densities
-
+# The default value of the physical densities:
+# Planck's Cosmological parameters report
+# # # 1502.01589 (Cosmological parameters)
+# # # 1502.01590 (DE & MG)
 # physical densities for different species: baryon, rad, photons,cdm and
 # DE component
 OMEGACH2 = 0.1197
@@ -70,8 +63,6 @@ OMEGAM0 = OMEGAB0 + OMEGACH2 / (REDUCED_H0 ** 2)
 RHOM0 = OMEGAM0 * RHOCR0
 RHODE0 = OMEGADE * RHOCR0
 
-# RHOCR0 = (3 * 1.48e-42 ** 2) / (8 * pi * 6.707e-39)
-
 # --------------------------------------------------------------------#
 # --------------------------------------------------------------------#
 # ========= Planck 2015 DE & MG paper Sect'n 5.1.6
@@ -79,7 +70,7 @@ RHODE0 = OMEGADE * RHOCR0
 # Table 4 from Planck 2015 DE&MG paper
 # We're using the values assuming Planck TT + lowP and marginalizing over A_L
 
-# 3x3 matrix
+#
 DMATCMB_AL_3 = np.array(
     [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]])
 ERRCMB_AL_3 = np.array([0.0088, 0.15, 0.00029])
