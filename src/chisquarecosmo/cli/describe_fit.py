@@ -28,12 +28,12 @@ def describe_fit(file: str, hdf5_group: str):
         group_name = hdf5_group.strip()
         base_group = h5f.get(group_name, None)
         if base_group is None:
-            message = f"unable to open group '{group_name}'"
-            raise CLIError(message)
+            err_msg = f"unable to open group '{group_name}'"
+            raise CLIError(err_msg)
         if not has_best_fit(base_group):
-            message = f"no best-fit result found in {base_group}"
-            raise CLIError(message)
-        result = BestFitResult.load(h5f, group_name)
+            err_msg = f"no best-fit result found in {base_group}"
+            raise CLIError(err_msg)
+        fit_result = BestFitResult.load(h5f, group_name)
         # Display minimization process information.
     title_text = Text("chisquarecosmo - Best-Fit Result Description")
     title_text.stylize("bold red")
@@ -43,5 +43,5 @@ def describe_fit(file: str, hdf5_group: str):
     console.print(Padding(file_text, (1, 0, 0, 0)), justify="center")
     hdf5_group_text = f"HDF5 group: [red bold]{group_name}[/]"
     console.print(Padding(hdf5_group_text, (0, 0, 1, 0)), justify="center")
-    result_text = Padding(f"[yellow]{result}[/]", (1, 1))
+    result_text = Padding(console.highlighter(str(fit_result)), (1, 1))
     console.print(result_text, justify="center")
