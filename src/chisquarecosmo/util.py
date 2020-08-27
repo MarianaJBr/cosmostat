@@ -3,7 +3,8 @@ import sys
 import typing as t
 
 from dask.callbacks import Callback
-from rich.console import Console
+from rich.console import Console, RenderableType
+from rich.padding import Padding
 from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
 # Rich output console instances.
@@ -33,6 +34,14 @@ def parse_file_and_group(path: t.Union[str, pathlib.Path]):
     return file, "/".join(group_parts)
 
 
+class RichProgressBar(Progress):
+    """A slightly modified rich progress bar."""
+
+    def get_renderables(self) -> t.Iterable[RenderableType]:
+        """"""
+        yield Padding(self.make_tasks_table(self.tasks), (1, 1))
+
+
 # ProgressBar columns.
 columns = (
     TextColumn("[progress.description]{task.description}"),
@@ -40,15 +49,16 @@ columns = (
     TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
     TimeRemainingColumn(),
 )
-progress = Progress(*columns, console=console)
 
 
-class ProgressBar(Callback):
-    """Progressbar for dask computations."""
+class DaskProgressBar(Callback):
+    """Progress bar for dask computations."""
 
     def _start_state(self, dsk, state):
         """"""
         total = sum(len(state[k]) for k in ["ready", "waiting", "running"])
+        progress = RichProgressBar(*columns, console=console,
+                                   auto_refresh=False)
         self._rich_progress = progress
         self._progress_task = progress.add_task("[red]Progress", total=total)
         progress.start()
@@ -57,6 +67,7 @@ class ProgressBar(Callback):
         """"""
         progress_task = self._progress_task
         self._rich_progress.update(progress_task, advance=1)
+        self._rich_progress.refresh()
 
     def _finish(self, dsk, state, errored):
         self._rich_progress.stop()

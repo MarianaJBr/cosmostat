@@ -10,7 +10,7 @@ from chisquarecosmo.cosmology import (
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import ProgressBar, console
+from chisquarecosmo.util import DaskProgressBar, console
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -326,7 +326,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
                 fixed_specs=fixed_specs,
                 grid_specs=grid_specs)
 
-    with ProgressBar():
+    with DaskProgressBar():
         grid_result = grid.eval()
 
     console.print(grid_result)
