@@ -36,7 +36,7 @@ class FreeParamSpec:
 
 
 @dataclass
-class GridParamSpec:
+class ParamPartitionSpec:
     """Describe a parameter partition."""
     name: str
     lower_bound: float
@@ -73,7 +73,7 @@ class FixedParamSpec:
     value: float
 
 
-T_GridParamSpecs = t.List[GridParamSpec]
+T_ParamPartitionSpecs = t.List[ParamPartitionSpec]
 T_FixedParamSpecs = t.List[FixedParamSpec]
 
 
@@ -113,7 +113,7 @@ class BestFitResult:
         group.attrs["datasets_label"] = self.datasets.label
         group.attrs["params"] = best_fit_params_as_array(params)
         group.attrs["free_params"] = list(
-            map(free_param_as_array, free_params))
+            map(free_spec_as_array, free_params))
         group.attrs["eos_today"] = self.eos_today
         group.attrs["chi_square_min"] = self.chi_square_min
         group.attrs["chi_square_reduced"] = self.chi_square_reduced
@@ -144,7 +144,7 @@ class BestFitResult:
         params_data = group_attrs.pop("params")
         params = best_fit_params_from_array(params_data, params_cls)
         free_params_data = group_attrs.pop("free_params")
-        free_params = list(map(free_param_from_array, free_params_data))
+        free_params = list(map(free_spec_from_array, free_params_data))
         datasets = DatasetUnion.from_name(group_attrs["datasets"])
         eos_today = group_attrs["eos_today"]
         chi_square_min = group.attrs["chi_square_min"]
@@ -254,9 +254,9 @@ def best_fit_params_from_array(data: np.ndarray, params_cls: t.Type[Params]):
     return params_cls(**params_dict)
 
 
-def fixed_specs_as_array(param_specs: T_FixedParamSpecs):
+def fixed_specs_as_array(specs: T_FixedParamSpecs):
     """Convert several fixed parameter specs to a numpy array."""
-    param_items = [astuple(param) for param in param_specs]
+    param_items = [astuple(param) for param in specs]
     return np.array(param_items, dtype=_fixed_param_dtype)
 
 
@@ -265,36 +265,36 @@ def fixed_specs_from_array(data: np.ndarray):
     return [FixedParamSpec(*tuple(item)) for item in data]
 
 
-def free_param_as_array(param: FreeParamSpec):
+def free_spec_as_array(spec: FreeParamSpec):
     """Convert a free parameter spec to a numpy array."""
-    return np.array(astuple(param), dtype=_free_param_dtype)
+    return np.array(astuple(spec), dtype=_free_param_dtype)
 
 
-def free_param_from_array(data: np.ndarray):
+def free_spec_from_array(data: np.ndarray):
     """Retrieve a free parameter spec from a numpy array."""
     return FreeParamSpec(name=data["name"], lower_bound=data["lower_bound"],
                          upper_bound=data["upper_bound"])
 
 
-def grid_spec_as_array(param_spec: GridParamSpec):
+def partition_spec_as_array(spec: ParamPartitionSpec):
     """Convert a free parameter spec to a numpy array."""
     # Insert a 0 as base if the base is None since the array expects
     # an integer.
-    base = param_spec.base or 0
-    param_spec = replace(param_spec, base=base)
-    return np.array(astuple(param_spec), dtype=_grid_param_dtype)
+    base = spec.base or 0
+    spec = replace(spec, base=base)
+    return np.array(astuple(spec), dtype=_grid_param_dtype)
 
 
-def grid_spec_from_array(data: np.ndarray):
+def partition_spec_from_array(data: np.ndarray):
     """Retrieve a free parameter spec from a numpy array."""
     scale = data["scale"]
     base = data["base"]
     # If base is 0 then the correct base is None.
     correct_base = None if base == 0 else base
-    return GridParamSpec(name=data["name"],
-                         lower_bound=data["lower_bound"],
-                         upper_bound=data["upper_bound"],
-                         num_parts=data["num_parts"],
+    return ParamPartitionSpec(name=data["name"],
+                              lower_bound=data["lower_bound"],
+                              upper_bound=data["upper_bound"],
+                              num_parts=data["num_parts"],
                          scale=scale, base=correct_base)
 
 
@@ -409,8 +409,8 @@ class GridResult:
     """"""
     eos_model: Model
     datasets: DatasetUnion
-    fixed_specs: T_FixedParamSpecs
-    grid_specs: T_GridParamSpecs
+    fixed_params: T_FixedParamSpecs
+    param_partitions: T_ParamPartitionSpecs
     chi_square_data: np.ndarray
 
     def save(self, file: h5py.File,
@@ -431,9 +431,9 @@ class GridResult:
         group.attrs["eos_model"] = self.eos_model.name
         group.attrs["datasets"] = self.datasets.name
         group.attrs["datasets_label"] = self.datasets.label
-        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_specs)
+        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_params)
         group.attrs["param_partitions"] = list(
-            map(grid_spec_as_array, self.grid_specs))
+            map(partition_spec_as_array, self.param_partitions))
 
         # Save the chi-square grid data.
         group.create_dataset("chi_square", data=self.chi_square_data)
@@ -450,17 +450,17 @@ class GridResult:
         group_attrs = dict(group.attrs)
         eos_model = get_model(group_attrs["eos_model"])
         datasets = DatasetUnion.from_name(group_attrs["datasets"])
-        fixed_specs = fixed_specs_from_array(group_attrs["fixed_params"])
+        fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
         param_partitions_data = group_attrs.pop("param_partitions")
         param_partitions = list(
-            map(grid_spec_from_array, param_partitions_data))
+            map(partition_spec_from_array, param_partitions_data))
         # Load chi-square data.
         chi_square = group["chi_square"]
         # Make a new instance.
         return cls(eos_model=eos_model,
                    datasets=datasets,
-                   fixed_specs=fixed_specs,
-                   grid_specs=param_partitions,
+                   fixed_params=fixed_params,
+                   param_partitions=param_partitions,
                    chi_square_data=chi_square)
 
 
@@ -474,14 +474,14 @@ class Grid:
     """Represent a grid """
     eos_model: Model
     datasets: DatasetUnion
-    fixed_specs: T_FixedParamSpecs
-    grid_specs: T_GridParamSpecs
+    fixed_params: T_FixedParamSpecs
+    param_partitions: T_ParamPartitionSpecs
 
     # Private attributes.
-    free_spec_names: t.List[str] = field(init=False, default=None)
-    grid_arrays: t.List[np.ndarray] = field(init=False,
-                                            default=None,
-                                            repr=False)
+    free_param_names: t.List[str] = field(init=False, default=None)
+    partition_arrays: t.List[np.ndarray] = field(init=False,
+                                                 default=None,
+                                                 repr=False)
     likelihoods: t.List[Likelihood] = field(init=False,
                                             default=None,
                                             repr=False)
@@ -493,36 +493,36 @@ class Grid:
         """
         model = self.eos_model
         datasets = self.datasets
-        grid_specs = self.grid_specs
-        free_spec_names = [spec.name for spec in grid_specs]
-        grid_arrays = [spec.param_array for spec in self.grid_specs]
+        grid_specs = self.param_partitions
+        free_param_names = [spec.name for spec in grid_specs]
+        partition_arrays = [spec.param_array for spec in self.param_partitions]
         likelihoods = [model.make_likelihood(dataset) for dataset in datasets]
         # Set private attributes.
-        self.grid_arrays = grid_arrays
-        self.free_spec_names = free_spec_names
+        self.partition_arrays = partition_arrays
+        self.free_param_names = free_param_names
         self.likelihoods = likelihoods
 
     def _make_grid_func(self):
         """Make the function to evaluate on the grid."""
         eos_model = self.eos_model
         likelihoods = self.likelihoods
-        fixed_specs = self.fixed_specs
-        free_names = self.free_spec_names
-        grid_arrays = self.grid_arrays
+        fixed_params = self.fixed_params
+        free_names = self.free_param_names
+        partition_arrays = self.partition_arrays
         params_cls = eos_model.params_cls
         chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
 
         def grid_func(value_indexes: t.Tuple[int, ...]):
             """Grid function.
 
             Evaluates the chi-square function.
             """
-            grid_values = [grid_arrays[grid_idx][value_idx] for
+            grid_values = [partition_arrays[grid_idx][value_idx] for
                            grid_idx, value_idx
                            in enumerate(value_indexes)]
             params_dict = dict(zip(free_names, grid_values))
-            params_dict.update(fixed_specs_dict)
+            params_dict.update(fixed_params_dict)
             params_obj = params_cls(**params_dict)
             return sum(func(params_obj) for func in chi_square_funcs)
 
@@ -531,7 +531,7 @@ class Grid:
     def eval(self):
         """Evaluates the chi-square on the grid."""
         grid_func = self._make_grid_func()
-        grid_shape = tuple(array.size for array in self.grid_arrays)
+        grid_shape = tuple(array.size for array in self.partition_arrays)
 
         # Evaluate the grid using a multidimensional iterator. This
         # way we do not allocate memory for all the combinations of
@@ -542,6 +542,6 @@ class Grid:
         data_array: np.ndarray = np.array(data).reshape(grid_shape)
         return GridResult(eos_model=self.eos_model,
                           datasets=self.datasets,
-                          fixed_specs=self.fixed_specs,
-                          grid_specs=self.grid_specs,
+                          fixed_params=self.fixed_params,
+                          param_partitions=self.param_partitions,
                           chi_square_data=data_array)

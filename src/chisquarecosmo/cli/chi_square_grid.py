@@ -4,7 +4,7 @@ import typing as t
 import click
 import h5py
 from chisquarecosmo.chi_square import (
-    FixedParamSpec, Grid, GridParamSpec, has_grid
+    FixedParamSpec, Grid, ParamPartitionSpec, has_grid
 )
 from chisquarecosmo.cosmology import (
     get_dataset_union, get_model, registered_dataset_unions,
@@ -25,7 +25,7 @@ VALID_PARTITION_SCALES = ["linear", "log", "geom"]
 
 T_CLIParam = t.Tuple[str, str]
 T_CLIParams = t.Tuple[T_CLIParam, ...]
-T_GridParamSpec = t.Union[t.Type[FixedParamSpec], t.Type[GridParamSpec]]
+T_GridParamSpec = t.Union[t.Type[FixedParamSpec], t.Type[ParamPartitionSpec]]
 T_GridParamSpecs = t.Dict[T_GridParamSpec, t.List]
 
 
@@ -79,7 +79,7 @@ def _get_partition_spec(name: str, string: str):
             err_msg = f"'{num_parts}' is not a valid number of elements for " \
                       f"parameter '{name}' partition"
             raise BadParameter(err_msg)
-    return GridParamSpec(name, lower, upper, num_parts)
+    return ParamPartitionSpec(name, lower, upper, num_parts)
 
 
 def _get_partition_scale(name: str, string: str):
@@ -139,8 +139,8 @@ def validate_param(param: T_CLIParam):
                   f"in parameter '{name}' spec " \
                   f"'{lower}:{upper}:{num_parts}@{scale}'"
         raise BadParameter(err_msg)
-    return GridParamSpec(name, lower, upper, num_parts,
-                         scale=scale, base=base)
+    return ParamPartitionSpec(name, lower, upper, num_parts,
+                              scale=scale, base=base)
 
 
 def validate_params(ctx, param, values: T_CLIParams):
@@ -209,15 +209,16 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     datasets = get_dataset_union(datasets)
     params_cls = _eos_model.params_cls
     fixed_specs: t.List[FixedParamSpec] = param.get(FixedParamSpec, [])
-    grid_specs: t.List[GridParamSpec] = param.get(GridParamSpec, [])
+    partition_specs: t.List[ParamPartitionSpec] = \
+        param.get(ParamPartitionSpec, [])
 
     # Parameters defined for the current model/eos.
     param_names = list(params_cls._fields)
     defaults_dict = params_cls._field_defaults
     names_with_defaults = set(defaults_dict)
     fixed_names_set = {spec.name for spec in fixed_specs}
-    grid_names_set = {spec.name for spec in grid_specs}
-    spec_names_set = fixed_names_set | grid_names_set
+    partition_names_set = {spec.name for spec in partition_specs}
+    spec_names_set = fixed_names_set | partition_names_set
     required_names = [name for name in param_names if
                       name not in names_with_defaults]
     missing_names = [name for name in required_names if
@@ -242,7 +243,8 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
         raise CLIError(f"{err_msg}")
 
     # Get all parameters that are fixed by default.
-    fixed_names_set = (names_with_defaults - grid_names_set - fixed_names_set)
+    fixed_names_set = (
+        names_with_defaults - partition_names_set - fixed_names_set)
     fixed_specs.extend([
         FixedParamSpec(name, defaults_dict[name]) for name in fixed_names_set
     ])
@@ -257,7 +259,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
                               f"{base_group}"
                     raise CLIError(message)
 
-    def _by_name_order(spec: GridParamSpec):
+    def _by_name_order(spec: ParamPartitionSpec):
         """"""
         name = spec.name
         # TODO: Improve performance.
@@ -265,7 +267,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
 
     # Sort parameters.
     fixed_specs.sort(key=_by_name_order)
-    grid_specs.sort(key=_by_name_order)
+    partition_specs.sort(key=_by_name_order)
 
     # Table of fixed parameters.
     fixed_params_table = Table(expand=True, pad_edge=True)
@@ -286,7 +288,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     grid_specs_table.add_column("# of Items", justify="center", ratio=1)
     grid_specs_table.add_column("Scale", justify="center", ratio=1)
     # Add grid information to table.
-    for spec in grid_specs:
+    for spec in partition_specs:
         if spec.base is None:
             scale_text = f"{spec.scale}"
         else:
@@ -334,8 +336,8 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     # Grid object.
     grid = Grid(eos_model=_eos_model,
                 datasets=datasets,
-                fixed_specs=fixed_specs,
-                grid_specs=grid_specs)
+                fixed_params=fixed_specs,
+                param_partitions=partition_specs)
 
     with DaskProgressBar():
         grid_result = grid.eval()
