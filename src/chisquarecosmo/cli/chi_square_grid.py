@@ -2,8 +2,9 @@ import pathlib
 import typing as t
 
 import click
+import h5py
 from chisquarecosmo.chi_square import (
-    FixedParamSpec, Grid, GridParamSpec
+    FixedParamSpec, Grid, GridParamSpec, has_grid
 )
 from chisquarecosmo.cosmology import (
     get_dataset_union, get_model, registered_dataset_unions,
@@ -246,6 +247,16 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
         FixedParamSpec(name, defaults_dict[name]) for name in fixed_names_set
     ])
 
+    # Perform checks.
+    if not force_output and out_file.exists():
+        with h5py.File(out_file, "r") as h5f:
+            base_group = h5f.get(base_group_name, None)
+            if base_group is not None:
+                if has_grid(base_group):
+                    message = f"a grid result already exists in " \
+                              f"{base_group}"
+                    raise CLIError(message)
+
     def _by_name_order(spec: GridParamSpec):
         """"""
         name = spec.name
@@ -329,4 +340,5 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     with DaskProgressBar():
         grid_result = grid.eval()
 
-    console.print(grid_result)
+    with h5py.File(out_file, file_mode) as h5f:
+        grid_result.save(h5f, base_group_name, force_output)

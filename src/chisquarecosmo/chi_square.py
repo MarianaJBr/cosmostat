@@ -1,5 +1,5 @@
 import typing as t
-from dataclasses import astuple, dataclass, field
+from dataclasses import astuple, dataclass, field, replace
 
 import h5py
 import numpy as np
@@ -11,10 +11,11 @@ from .cosmology import (
     get_model
 )
 
-# Name of the HDF5 groups used to store best fir results.
+# Name of the HDF5 groups used to store best-fit and grid results.
 ROOT_GROUP_NAME = "/"
 BEST_FIT_GROUP_LABEL = "best_fit"
 OPT_INFO_GROUP_LABEL = "optimization_info"
+GRID_GROUP_LABEL = "grid"
 
 # Optimization info type. We expect SciPy OptimizeResult instances,
 # objects with a Mapping interface, or dictionaries.
@@ -36,7 +37,7 @@ class FreeParamSpec:
 
 @dataclass
 class GridParamSpec:
-    """Description of an optimization parameter."""
+    """Describe a parameter partition."""
     name: str
     lower_bound: float
     upper_bound: float
@@ -135,7 +136,7 @@ class BestFitResult:
             file[group_name]
         group = base_group[BEST_FIT_GROUP_LABEL]
 
-        # Load best fit parameters to group.
+        # Load best-fit result attributes.
         group_attrs = dict(group.attrs)
         eos_model = group_attrs.pop("eos_model")
         model = get_model(eos_model)
@@ -213,38 +214,88 @@ def _is_none(_obj: t.Any):
     return _obj is None
 
 
+# Define the dtype we use to save the best-fit params in an HDF5 file.
 _best_fit_params_dtype = np.dtype([
     ("name", h5py.string_dtype()), ("value", "f8")
 ])
 
+# Define the dtype we use to save a fixed param in an HDF5 file.
+_fixed_param_dtype = np.dtype([
+    ("name", h5py.string_dtype()), ("value", "f8")
+])
+
+# Define the dtype we use to save a free param in an HDF5 file.
 _free_param_dtype = np.dtype([
     ("name", h5py.string_dtype()),
     ("lower_bound", "f8"),
     ("upper_bound", "f8")
 ])
 
+# Define the dtype we use to save a grid param in an HDF5 file.
+_grid_param_dtype = np.dtype([
+    ("name", h5py.string_dtype()),
+    ("lower_bound", "f8"),
+    ("upper_bound", "f8"),
+    ("num_parts", "i4"),
+    ("scale", h5py.string_dtype()),
+    ("base", "i4"),
+])
+
 
 def best_fit_params_as_array(param: Params):
-    """"""
+    """Convert the best-fit parameters to a numpy array."""
     param_items = list(param._asdict().items())
     return np.array(param_items, dtype=_best_fit_params_dtype)
 
 
 def best_fit_params_from_array(data: np.ndarray, params_cls: t.Type[Params]):
-    """"""
+    """Retrieve the best-fit parameters from a numpy array."""
     params_dict = dict(map(tuple, data))
     return params_cls(**params_dict)
 
 
+def fixed_specs_as_array(param_specs: T_FixedParamSpecs):
+    """Convert several fixed parameter specs to a numpy array."""
+    param_items = [astuple(param) for param in param_specs]
+    return np.array(param_items, dtype=_fixed_param_dtype)
+
+
+def fixed_specs_from_array(data: np.ndarray):
+    """Retrieve the fixed parameter specs from a numpy array."""
+    return [FixedParamSpec(*tuple(item)) for item in data]
+
+
 def free_param_as_array(param: FreeParamSpec):
-    """"""
+    """Convert a free parameter spec to a numpy array."""
     return np.array(astuple(param), dtype=_free_param_dtype)
 
 
 def free_param_from_array(data: np.ndarray):
-    """"""
+    """Retrieve a free parameter spec from a numpy array."""
     return FreeParamSpec(name=data["name"], lower_bound=data["lower_bound"],
                          upper_bound=data["upper_bound"])
+
+
+def grid_spec_as_array(param_spec: GridParamSpec):
+    """Convert a free parameter spec to a numpy array."""
+    # Insert a 0 as base if the base is None since the array expects
+    # an integer.
+    base = param_spec.base or 0
+    param_spec = replace(param_spec, base=base)
+    return np.array(astuple(param_spec), dtype=_grid_param_dtype)
+
+
+def grid_spec_from_array(data: np.ndarray):
+    """Retrieve a free parameter spec from a numpy array."""
+    scale = data["scale"]
+    base = data["base"]
+    # If base is 0 then the correct base is None.
+    correct_base = None if base == 0 else base
+    return GridParamSpec(name=data["name"],
+                         lower_bound=data["lower_bound"],
+                         upper_bound=data["upper_bound"],
+                         num_parts=data["num_parts"],
+                         scale=scale, base=correct_base)
 
 
 def make_objective_func(chi_square_funcs: t.List[T_LikelihoodFunc],
@@ -360,19 +411,62 @@ class GridResult:
     datasets: DatasetUnion
     fixed_specs: T_FixedParamSpecs
     grid_specs: T_GridParamSpecs
-    data: np.ndarray
+    chi_square_data: np.ndarray
 
     def save(self, file: h5py.File,
              group_name: str = None,
              force: bool = False):
         """Save a grid result to an HDF5 file."""
-        pass
+        if group_name is None or group_name == ROOT_GROUP_NAME:
+            base_group = file[ROOT_GROUP_NAME]
+        else:
+            base_group = file.get(group_name, None)
+            if base_group is None:
+                base_group = file.create_group(group_name)
+        if GRID_GROUP_LABEL in base_group and force:
+            del base_group[GRID_GROUP_LABEL]
+        group = base_group.create_group(GRID_GROUP_LABEL)
+
+        # Save the attributes that define the result.
+        group.attrs["eos_model"] = self.eos_model.name
+        group.attrs["datasets"] = self.datasets.name
+        group.attrs["datasets_label"] = self.datasets.label
+        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_specs)
+        group.attrs["param_partitions"] = list(
+            map(grid_spec_as_array, self.grid_specs))
+
+        # Save the chi-square grid data.
+        group.create_dataset("chi_square", data=self.chi_square_data)
 
     @classmethod
     def load(cls, file: h5py.File,
              group_name: str = None):
         """Load a grid result from an HDF5 file."""
-        pass
+        base_group: h5py.Group = file["/"] if group_name is None else \
+            file[group_name]
+        group = base_group[GRID_GROUP_LABEL]
+
+        # Load grid result attributes.
+        group_attrs = dict(group.attrs)
+        eos_model = get_model(group_attrs["eos_model"])
+        datasets = DatasetUnion.from_name(group_attrs["datasets"])
+        fixed_specs = fixed_specs_from_array(group_attrs["fixed_params"])
+        param_partitions_data = group_attrs.pop("param_partitions")
+        param_partitions = list(
+            map(grid_spec_from_array, param_partitions_data))
+        # Load chi-square data.
+        chi_square = group["chi_square"]
+        # Make a new instance.
+        return cls(eos_model=eos_model,
+                   datasets=datasets,
+                   fixed_specs=fixed_specs,
+                   grid_specs=param_partitions,
+                   chi_square_data=chi_square)
+
+
+def has_grid(group: h5py.Group):
+    """Check if a grid result exists in an HDF5 group."""
+    return GRID_GROUP_LABEL in group
 
 
 @dataclass
@@ -450,4 +544,4 @@ class Grid:
                           datasets=self.datasets,
                           fixed_specs=self.fixed_specs,
                           grid_specs=self.grid_specs,
-                          data=data_array)
+                          chi_square_data=data_array)
