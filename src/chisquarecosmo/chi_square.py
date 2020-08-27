@@ -195,7 +195,7 @@ class BestFitResult:
             if isinstance(item, h5py.Dataset):
                 opt_result_data[key] = item[()]
         # Convert the optimization info to an OptimizeResult instance.
-        return OptimizeResult(opt_result_data)
+        return opt_result_data
 
 
 def _bounds(spec: FreeParamSpec):
