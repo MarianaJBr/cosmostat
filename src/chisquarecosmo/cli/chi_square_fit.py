@@ -12,7 +12,7 @@ from chisquarecosmo.cosmology import (
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import console
+from chisquarecosmo.util import console, plug_external_models
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -20,8 +20,6 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from toolz import groupby
-
-from .util import plug_external_models
 
 # By default, the routine saves the best-fit results in this file.
 # Its full path is relative the current working directory.
