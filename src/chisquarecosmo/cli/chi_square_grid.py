@@ -3,6 +3,7 @@ import typing as t
 
 import click
 import h5py
+import numpy as np
 from chisquarecosmo.chi_square import (
     FixedParamSpec, Grid, ParamPartitionSpec, has_grid
 )
@@ -42,7 +43,7 @@ def _get_partition_spec(name: str, string: str):
                           f"'{name}'"
                 raise BadParameter(err_msg)
             # Return a fixed parameter spec.
-            return FixedParamSpec(name, value)
+            return value,
         else:
             err_msg = f"invalid partition '{string}' for parameter " \
                       f"'{name}'"
@@ -79,7 +80,7 @@ def _get_partition_spec(name: str, string: str):
             err_msg = f"'{num_parts}' is not a valid number of elements for " \
                       f"parameter '{name}' partition"
             raise BadParameter(err_msg)
-    return ParamPartitionSpec(name, lower, upper, num_parts)
+    return lower, upper, num_parts
 
 
 def _get_partition_scale(name: str, string: str):
@@ -122,25 +123,30 @@ def validate_param(param: T_CLIParam):
     num_parts = len(value_parts)
     if num_parts != 2:
         if num_parts == 1:
-            value = value_parts[0]
-            return _get_partition_spec(name, value)
+            string = value_parts[0]
+            partition_spec = _get_partition_spec(name, string)
+            try:
+                value, = partition_spec
+                return FixedParamSpec(name, value)
+            except ValueError:
+                lower, upper, num_parts = partition_spec
+                return ParamPartitionSpec.from_range_spec(name, lower, upper,
+                                                          num_parts)
         else:
             err_msg = f"invalid partition spec '{value_str}' for parameter " \
                       f"'{name}'"
             raise BadParameter(err_msg)
     partition_str, scale_str = value_parts
-    grid_spec = _get_partition_spec(name, partition_str)
-    lower = grid_spec.lower_bound
-    upper = grid_spec.upper_bound
-    num_parts = grid_spec.num_parts
+    partition_spec = _get_partition_spec(name, partition_str)
+    lower, upper, num_parts = partition_spec
     scale, base = _get_partition_scale(name, scale_str)
     if (lower < 0 or upper < 0) and (scale in ["geom"]):
         err_msg = f"can not mix negative boundaries and geom scales " \
                   f"in parameter '{name}' spec " \
                   f"'{lower}:{upper}:{num_parts}@{scale}'"
         raise BadParameter(err_msg)
-    return ParamPartitionSpec(name, lower, upper, num_parts,
-                              scale=scale, base=base)
+    return ParamPartitionSpec.from_range_spec(name, lower, upper, num_parts,
+                                              scale=scale, base=base)
 
 
 def validate_params(ctx, param, values: T_CLIParams):
@@ -269,6 +275,9 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     fixed_specs.sort(key=_by_name_order)
     partition_specs.sort(key=_by_name_order)
 
+    if not partition_specs:
+        raise CLIError("no parameter partition has been defined")
+
     # Table of fixed parameters.
     fixed_params_table = Table(expand=True, pad_edge=True)
     fixed_params_table.add_column("Name", justify="center", ratio=1)
@@ -276,30 +285,23 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     # Add param information to table.
     for spec in fixed_specs:
         fixed_params_table.add_row(
-            Text(f"{spec.name}", style="bold blue"),
+            Text(f"{spec.name}", style="bold"),
             Text(f"{spec.value}"),
         )
 
     # Table of partition parameters.
     grid_specs_table = Table(expand=True)
     grid_specs_table.add_column("Name", justify="center", ratio=1)
-    grid_specs_table.add_column("Lower Bound", justify="center", ratio=1)
-    grid_specs_table.add_column("Upper Bound", justify="center", ratio=1)
-    grid_specs_table.add_column("# of Items", justify="center", ratio=1)
-    grid_specs_table.add_column("Scale", justify="center", ratio=1)
+    grid_specs_table.add_column("Data Array", justify="center", ratio=6)
+    grid_specs_table.add_column("# of Grid Points", justify="center", ratio=1)
     # Add grid information to table.
-    for spec in partition_specs:
-        if spec.base is None:
-            scale_text = f"{spec.scale}"
-        else:
-            scale_text = f"{spec.scale} (base {spec.base})"
-        grid_specs_table.add_row(
-            Text(str(spec.name), style="bold blue"),
-            Text(f"{spec.lower_bound}"),
-            Text(f"{spec.upper_bound}"),
-            Text(f"{spec.num_parts}"),
-            Text(f"{scale_text}")
-        )
+    with np.printoptions(threshold=50):
+        for spec in partition_specs:
+            grid_specs_table.add_row(
+                Text(str(spec.name), style="bold"),
+                console.highlighter(str(spec.data)),
+                Text(f"{spec.data.size}"),
+            )
 
     # Display grid evaluation information.
     title_text = Text("chisquarecosmo - Chi-Square Grid Evaluator")
@@ -344,3 +346,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
 
     with h5py.File(out_file, file_mode) as h5f:
         grid_result.save(h5f, base_group_name, force_output)
+
+    console.print(Padding(f"[underline bold green]Optimization process "
+                          f"successfully finished[/]",
+                          pad=(1, 0)), justify="center")

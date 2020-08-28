@@ -1,5 +1,5 @@
 import typing as t
-from dataclasses import astuple, dataclass, field, replace
+from dataclasses import astuple, dataclass, field
 
 import h5py
 import numpy as np
@@ -16,6 +16,7 @@ ROOT_GROUP_NAME = "/"
 BEST_FIT_GROUP_LABEL = "best_fit"
 OPT_INFO_GROUP_LABEL = "optimization_info"
 GRID_GROUP_LABEL = "grid"
+PARAM_PARTITIONS_GROUP_LABEL = "param_partitions"
 
 # Optimization info type. We expect SciPy OptimizeResult instances,
 # objects with a Mapping interface, or dictionaries.
@@ -39,31 +40,29 @@ class FreeParamSpec:
 class ParamPartitionSpec:
     """Describe a parameter partition."""
     name: str
-    lower_bound: float
-    upper_bound: float
-    num_parts: int
-    scale: str = "linear"
-    base: int = None
+    data: np.ndarray
 
-    def __post_init__(self):
-        """"""
-        # Set a default base only if the scale is logarithmic.
-        if self.scale == "log" and self.base is None:
-            self.base = 10
-
-    @property
-    def param_array(self) -> np.ndarray:
-        """Returns an array with the parameter partition."""
-        lower = self.lower_bound
-        upper = self.upper_bound
-        num_values = self.num_parts + 1
-        base = self.base
-        if self.scale == "linear":
-            return np.linspace(lower, upper, num=num_values)
-        if self.scale == "log":
-            return np.logspace(lower, upper, num=num_values, base=base)
-        if self.scale == "geom":
-            return np.geomspace(lower, upper, num=num_values)
+    @classmethod
+    def from_range_spec(cls, name: str,
+                        lower_bound: float,
+                        upper_bound: float,
+                        num_parts: int,
+                        scale: str = "linear",
+                        base: int = None):
+        """Create a partition spec from a range specification."""
+        lower = lower_bound
+        upper = upper_bound
+        num_values = num_parts + 1
+        if scale == "linear":
+            data = np.linspace(lower, upper, num=num_values)
+        elif scale == "geom":
+            data = np.geomspace(lower, upper, num=num_values)
+        elif scale == "log":
+            base = base or 10
+            data = np.logspace(lower, upper, num=num_values, base=base)
+        else:
+            raise
+        return cls(name=name, data=np.asarray(data))
 
 
 @dataclass
@@ -276,28 +275,6 @@ def free_spec_from_array(data: np.ndarray):
                          upper_bound=data["upper_bound"])
 
 
-def partition_spec_as_array(spec: ParamPartitionSpec):
-    """Convert a free parameter spec to a numpy array."""
-    # Insert a 0 as base if the base is None since the array expects
-    # an integer.
-    base = spec.base or 0
-    spec = replace(spec, base=base)
-    return np.array(astuple(spec), dtype=_grid_param_dtype)
-
-
-def partition_spec_from_array(data: np.ndarray):
-    """Retrieve a free parameter spec from a numpy array."""
-    scale = data["scale"]
-    base = data["base"]
-    # If base is 0 then the correct base is None.
-    correct_base = None if base == 0 else base
-    return ParamPartitionSpec(name=data["name"],
-                              lower_bound=data["lower_bound"],
-                              upper_bound=data["upper_bound"],
-                              num_parts=data["num_parts"],
-                         scale=scale, base=correct_base)
-
-
 def make_objective_func(chi_square_funcs: t.List[T_LikelihoodFunc],
                         params_cls: t.Type[Params],
                         fixed_specs: t.List[FixedParamSpec],
@@ -413,6 +390,11 @@ class GridResult:
     param_partitions: T_ParamPartitionSpecs
     chi_square_data: np.ndarray
 
+    @property
+    def partition_arrays(self):
+        """A dictionary with the partition arrays."""
+        return dict(map(astuple, self.param_partitions))
+
     def save(self, file: h5py.File,
              group_name: str = None,
              force: bool = False):
@@ -432,8 +414,11 @@ class GridResult:
         group.attrs["datasets"] = self.datasets.name
         group.attrs["datasets_label"] = self.datasets.label
         group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_params)
-        group.attrs["param_partitions"] = list(
-            map(partition_spec_as_array, self.param_partitions))
+
+        # Create a group to save the grid partition arrays.
+        arrays_group = group.create_group(PARAM_PARTITIONS_GROUP_LABEL)
+        for partition in self.param_partitions:
+            arrays_group.create_dataset(partition.name, data=partition.data)
 
         # Save the chi-square grid data.
         group.create_dataset("chi_square", data=self.chi_square_data)
@@ -451,11 +436,22 @@ class GridResult:
         eos_model = get_model(group_attrs["eos_model"])
         datasets = DatasetUnion.from_name(group_attrs["datasets"])
         fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
-        param_partitions_data = group_attrs.pop("param_partitions")
-        param_partitions = list(
-            map(partition_spec_from_array, param_partitions_data))
+
+        # Load partition arrays.
+        param_partitions = []
+        arrays_group: h5py.Group = group[PARAM_PARTITIONS_GROUP_LABEL]
+        arrays_group_keys = list(arrays_group.keys())
+        for key in arrays_group_keys:
+            item = arrays_group[key]
+            # Load numpy arrays from data sets.
+            if isinstance(item, h5py.Dataset):
+                name = key
+                data = item[()]
+                param_partitions.append(ParamPartitionSpec(name, data))
+
         # Load chi-square data.
-        chi_square = group["chi_square"]
+        chi_square = group["chi_square"][()]
+
         # Make a new instance.
         return cls(eos_model=eos_model,
                    datasets=datasets,
@@ -478,10 +474,9 @@ class Grid:
     param_partitions: T_ParamPartitionSpecs
 
     # Private attributes.
-    free_param_names: t.List[str] = field(init=False, default=None)
-    partition_arrays: t.List[np.ndarray] = field(init=False,
-                                                 default=None,
-                                                 repr=False)
+    param_partition_names: t.List[str] = field(init=False,
+                                               default=None,
+                                               repr=False)
     likelihoods: t.List[Likelihood] = field(init=False,
                                             default=None,
                                             repr=False)
@@ -493,13 +488,11 @@ class Grid:
         """
         model = self.eos_model
         datasets = self.datasets
-        grid_specs = self.param_partitions
-        free_param_names = [spec.name for spec in grid_specs]
-        partition_arrays = [spec.param_array for spec in self.param_partitions]
+        param_partitions = self.param_partitions
+        param_partition_names = [spec.name for spec in param_partitions]
         likelihoods = [model.make_likelihood(dataset) for dataset in datasets]
         # Set private attributes.
-        self.partition_arrays = partition_arrays
-        self.free_param_names = free_param_names
+        self.param_partition_names = param_partition_names
         self.likelihoods = likelihoods
 
     def _make_grid_func(self):
@@ -507,8 +500,8 @@ class Grid:
         eos_model = self.eos_model
         likelihoods = self.likelihoods
         fixed_params = self.fixed_params
-        free_names = self.free_param_names
-        partition_arrays = self.partition_arrays
+        free_names = self.param_partition_names
+        param_partition = self.param_partitions
         params_cls = eos_model.params_cls
         chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
         fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
@@ -518,9 +511,8 @@ class Grid:
 
             Evaluates the chi-square function.
             """
-            grid_values = [partition_arrays[grid_idx][value_idx] for
-                           grid_idx, value_idx
-                           in enumerate(value_indexes)]
+            grid_values = [param_partition[grid_idx].data[value_idx] for
+                           grid_idx, value_idx in enumerate(value_indexes)]
             params_dict = dict(zip(free_names, grid_values))
             params_dict.update(fixed_params_dict)
             params_obj = params_cls(**params_dict)
@@ -531,17 +523,20 @@ class Grid:
     def eval(self):
         """Evaluates the chi-square on the grid."""
         grid_func = self._make_grid_func()
-        grid_shape = tuple(array.size for array in self.partition_arrays)
+        param_partitions = self.param_partitions
+        grid_shape = tuple(
+            partition.data.size for partition in param_partitions)
 
         # Evaluate the grid using a multidimensional iterator. This
         # way we do not allocate memory for all the combinations of
         # parameter values that form the grid.
         grid_indexes = np.ndindex(*grid_shape)
         indexes_bag = bag.from_sequence(grid_indexes)
-        data = indexes_bag.map(grid_func).compute()
-        data_array: np.ndarray = np.array(data).reshape(grid_shape)
+        chi_square_data = indexes_bag.map(grid_func).compute()
+        chi_square_array: np.ndarray = np.asarray(chi_square_data).reshape(
+            grid_shape)
         return GridResult(eos_model=self.eos_model,
                           datasets=self.datasets,
                           fixed_params=self.fixed_params,
-                          param_partitions=self.param_partitions,
-                          chi_square_data=data_array)
+                          param_partitions=param_partitions,
+                          chi_square_data=chi_square_array)
