@@ -7,7 +7,7 @@ from dask import bag
 from scipy.optimize import OptimizeResult, differential_evolution
 
 from .cosmology import (
-    Dataset, DatasetUnion, Likelihood, Model, Params, T_LikelihoodFunc,
+    Dataset, DatasetJoin, Likelihood, Model, Params, T_LikelihoodFunc,
     get_model
 )
 
@@ -80,7 +80,7 @@ T_FixedParamSpecs = t.List[FixedParamSpec]
 class BestFitResult:
     """Represent the result of a SciPy optimization routine."""
     eos_model: Model
-    datasets: DatasetUnion
+    datasets: DatasetJoin
     params: Params
     free_params: t.List[FreeParamSpec]
     eos_today: float
@@ -144,7 +144,7 @@ class BestFitResult:
         params = best_fit_params_from_array(params_data, params_cls)
         free_params_data = group_attrs.pop("free_params")
         free_params = list(map(free_spec_from_array, free_params_data))
-        datasets = DatasetUnion.from_name(group_attrs["datasets"])
+        datasets = DatasetJoin.from_name(group_attrs["datasets"])
         eos_today = group_attrs["eos_today"]
         chi_square_min = group.attrs["chi_square_min"]
         chi_square_reduced = group.attrs["chi_square_reduced"]
@@ -305,7 +305,7 @@ def has_best_fit(group: h5py.Group):
 class Minimizer:
     """"""
     eos_model: Model
-    datasets: DatasetUnion
+    datasets: DatasetJoin
     fixed_specs: T_FixedParamSpecs
     free_specs: t.List[FreeParamSpec]
 
@@ -314,7 +314,7 @@ class Minimizer:
 
 
 def find_best_fit(eos_model: Model,
-                  datasets: DatasetUnion,
+                  datasets: DatasetJoin,
                   fixed_specs: t.List[FixedParamSpec],
                   free_specs: t.List[FreeParamSpec],
                   callback: t.Callable):
@@ -349,7 +349,7 @@ def find_best_fit(eos_model: Model,
 
 
 def make_best_fit_result(eos_model: Model,
-                         datasets: DatasetUnion,
+                         datasets: DatasetJoin,
                          best_fit_params: Params,
                          free_specs: t.List[FreeParamSpec],
                          optimization_info: T_OptimizationInfo):
@@ -385,7 +385,7 @@ def make_best_fit_result(eos_model: Model,
 class GridResult:
     """"""
     eos_model: Model
-    datasets: DatasetUnion
+    datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
     param_partitions: T_ParamPartitionSpecs
     chi_square_data: np.ndarray
@@ -434,7 +434,7 @@ class GridResult:
         # Load grid result attributes.
         group_attrs = dict(group.attrs)
         eos_model = get_model(group_attrs["eos_model"])
-        datasets = DatasetUnion.from_name(group_attrs["datasets"])
+        datasets = DatasetJoin.from_name(group_attrs["datasets"])
         fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
 
         # Load partition arrays.
@@ -469,7 +469,7 @@ def has_grid(group: h5py.Group):
 class Grid:
     """Represent a grid """
     eos_model: Model
-    datasets: DatasetUnion
+    datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
     param_partitions: T_ParamPartitionSpecs
 

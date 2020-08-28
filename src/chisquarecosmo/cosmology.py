@@ -477,9 +477,7 @@ class Model(metaclass=ABCMeta):
 
 
 @dataclass
-class DatasetUnion(t.Iterable):
-    ### T0DO: refactor this class to avoid phrasing 'Union'
-    ### Idea: DatasetJoin ?
+class DatasetJoin(t.Iterable):
     """Represent the union of several datasets."""
     datasets: t.List[Dataset]
 
@@ -524,7 +522,7 @@ _EOS_MODELS: t.Dict[str, Model] = {}
 _DATASETS: t.Dict[str, Dataset] = {}
 
 # Mapping for the registered dataset combinations. Keep private/protected.
-_DATASET_UNIONS: t.Dict[str, DatasetUnion] = {}
+_DATASET_JOINS: t.Dict[str, DatasetJoin] = {}
 
 
 def register_model(model: Model):
@@ -561,19 +559,19 @@ def registered_datasets():
     return list(_DATASETS)
 
 
-def register_dataset_union(dataset_union: DatasetUnion):
-    """Register a new dataset union."""
-    if dataset_union.name in _DATASET_UNIONS:
-        raise KeyError(f"dataset union '{dataset_union.name}' has been "
+def register_dataset_join(dataset_join: DatasetJoin):
+    """Register a new dataset join."""
+    if dataset_join.name in _DATASET_JOINS:
+        raise KeyError(f"dataset join '{dataset_join.name}' has been "
                        f"already registered")
-    _DATASET_UNIONS[dataset_union.name] = dataset_union
+    _DATASET_JOINS[dataset_join.name] = dataset_join
 
 
-def get_dataset_union(name: str):
-    """Return an existing dataset union."""
-    return _DATASET_UNIONS[name]
+def get_dataset_join(name: str):
+    """Return an existing dataset join."""
+    return _DATASET_JOINS[name]
 
 
-def registered_dataset_unions():
-    """Return a list with the registered dataset unions."""
-    return list(_DATASET_UNIONS)
+def registered_dataset_joins():
+    """Return a list with the registered dataset join."""
+    return list(_DATASET_JOINS)

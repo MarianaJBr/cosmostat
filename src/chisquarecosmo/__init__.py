@@ -8,9 +8,9 @@
 import numpy as np
 
 from .cosmology import (
-    Dataset, DatasetUnion, Likelihood, Model, Params, get_dataset,
-    get_dataset_union, get_model, register_dataset, register_dataset_union,
-    register_model, registered_dataset_unions, registered_datasets,
+    Dataset, DatasetJoin, Likelihood, Model, Params, get_dataset,
+    get_dataset_join, get_model, register_dataset, register_dataset_join,
+    register_model, registered_dataset_joins, registered_datasets,
     registered_models
 )
 from .data import bao_data, hz_data, sneia_union2_1
@@ -42,35 +42,37 @@ _cmb_dataset = Dataset(name="CMB",
                        cosmology_func="y_vec_cmb")
 
 # Register dataset unions.
-bao_dataset = DatasetUnion([_bao_dataset])
-sne_dataset = DatasetUnion([_sne_dataset])
-hz_dataset = DatasetUnion([_hz_dataset])
-bao_cmb_dataset = DatasetUnion([_bao_dataset, _cmb_dataset])
-bao_sne_hz_dataset = DatasetUnion([_bao_dataset, _sne_dataset, _hz_dataset])
-total_dataset = DatasetUnion([_bao_dataset,
-                              _sne_dataset,
-                              _hz_dataset,
-                              _cmb_dataset])
+_bao_dataset_join = DatasetJoin([_bao_dataset])
+_sne_dataset_join = DatasetJoin([_sne_dataset])
+_hz_dataset_join = DatasetJoin([_hz_dataset])
+_bao_cmb_dataset_join = DatasetJoin([_bao_dataset, _cmb_dataset])
+_bao_sne_hz_dataset_join = DatasetJoin([_bao_dataset,
+                                        _sne_dataset,
+                                        _hz_dataset])
+_total_dataset_join = DatasetJoin([_bao_dataset,
+                                   _sne_dataset,
+                                   _hz_dataset,
+                                   _cmb_dataset])
 
-register_dataset_union(bao_dataset)
-register_dataset_union(sne_dataset)
-register_dataset_union(hz_dataset)
-register_dataset_union(bao_cmb_dataset)
-register_dataset_union(bao_sne_hz_dataset)
-register_dataset_union(total_dataset)
+register_dataset_join(_bao_dataset_join)
+register_dataset_join(_sne_dataset_join)
+register_dataset_join(_hz_dataset_join)
+register_dataset_join(_bao_cmb_dataset_join)
+register_dataset_join(_bao_sne_hz_dataset_join)
+register_dataset_join(_total_dataset_join)
 
 # Exported symbols.
 __all__ = [
     "Dataset",
-    "DatasetUnion",
+    "DatasetJoin",
     "Likelihood",
     "Model",
     "Params",
     "plug_external_models",
     "register_dataset",
-    "register_dataset_union",
+    "register_dataset_join",
     "register_model",
-    "registered_dataset_unions",
+    "registered_dataset_joins",
     "registered_datasets",
     "registered_models",
 ]

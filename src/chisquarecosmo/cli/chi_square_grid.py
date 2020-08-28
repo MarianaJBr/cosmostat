@@ -8,7 +8,7 @@ from chisquarecosmo.chi_square import (
     FixedParamSpec, Grid, ParamPartitionSpec, has_grid
 )
 from chisquarecosmo.cosmology import (
-    get_dataset_union, get_model, registered_dataset_unions,
+    get_dataset_join, get_model, registered_dataset_joins,
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
@@ -160,7 +160,7 @@ def validate_params(ctx, param, values: T_CLIParams):
 
 # Use these values as possible choices for EOS_MODEL and DATASET arguments.
 _models = registered_models()
-_datasets = registered_dataset_unions()
+_datasets = registered_dataset_joins()
 
 
 @click.command()
@@ -216,7 +216,7 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     # Append to existing file, or create a new one.
     file_mode = "a" if out_file.exists() else "w"
     _eos_model = get_model(eos_model)
-    datasets = get_dataset_union(datasets)
+    datasets = get_dataset_join(datasets)
     params_cls = _eos_model.params_cls
     fixed_specs: t.List[FixedParamSpec] = param.get(FixedParamSpec, [])
     partition_specs: t.List[ParamPartitionSpec] = \
