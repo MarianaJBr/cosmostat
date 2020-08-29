@@ -8,8 +8,10 @@
 import numpy as np
 
 from .cosmology import (
-    Dataset, DatasetUnion, register_dataset,
-    register_dataset_union, register_model
+    Dataset, DatasetUnion, Likelihood, Model, Params, get_dataset,
+    get_dataset_union, get_model, register_dataset, register_dataset_union,
+    register_model, registered_dataset_unions, registered_datasets,
+    registered_models
 )
 from .data import bao_data, hz_data, sneia_union2_1
 from .models import cpl, one
@@ -18,7 +20,6 @@ from .util import plug_external_models
 #################
 # Initialization
 #################
-__all__ = []
 
 # Register built-in models.
 register_model(cpl.model)
@@ -57,3 +58,19 @@ register_dataset_union(hz_dataset)
 register_dataset_union(bao_cmb_dataset)
 register_dataset_union(bao_sne_hz_dataset)
 register_dataset_union(total_dataset)
+
+# Exported symbols.
+__all__ = [
+    "Dataset",
+    "DatasetUnion",
+    "Likelihood",
+    "Model",
+    "Params",
+    "plug_external_models",
+    "register_dataset",
+    "register_dataset_union",
+    "register_model",
+    "registered_dataset_unions",
+    "registered_datasets",
+    "registered_models",
+]
