@@ -68,6 +68,8 @@ __all__ = [
     "Likelihood",
     "Model",
     "Params",
+    "get_dataset",
+    "get_model",
     "plug_external_models",
     "register_dataset",
     "register_dataset_join",
