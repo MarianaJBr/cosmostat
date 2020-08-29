@@ -12,7 +12,8 @@ from .cosmology import (
     register_dataset_union, register_model
 )
 from .data import bao_data, hz_data, sneia_union2_1
-from .models import cpl
+from .models import cpl, one
+from .util import plug_external_models
 
 #################
 # Initialization
@@ -21,6 +22,7 @@ __all__ = []
 
 # Register built-in models.
 register_model(cpl.model)
+register_model(one.model)
 
 # Register built-in datasets.
 _bao_dataset = bao_data.bao_dataset
