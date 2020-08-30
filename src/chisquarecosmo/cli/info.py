@@ -80,3 +80,14 @@ def info(models: bool, datasets: bool):
         console.print(Padding("[yellow underline]DATASETS", pad=(1, 2)),
                       justify="center")
         console.print(Padding(datasets_grid, pad=(0, 2)))
+
+        if _dataset_joins:
+            console.print(Padding("[red]Dataset Joins", pad=(0, 2)),
+                          justify="center")
+            joins = []
+            for join_name in _dataset_joins:
+                if join_name in _datasets:
+                    continue
+                joins.append(join_name)
+            console.print(Padding(console.highlighter(str(joins)),
+                                  pad=(0, 2, 1, 2)), justify="center")
