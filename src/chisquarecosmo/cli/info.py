@@ -4,12 +4,9 @@ from chisquarecosmo import (
     get_dataset, get_model, registered_dataset_joins,
     registered_datasets, registered_models
 )
-from chisquarecosmo.util import console, plug_external_models
+from chisquarecosmo.util import console
 from rich.padding import Padding
 from rich.table import Table
-
-# Plug external models. Raise exceptions normally.
-plug_external_models()
 
 _models = registered_models()
 _datasets = registered_datasets()

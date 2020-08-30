@@ -12,7 +12,7 @@ from chisquarecosmo.cosmology import (
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import DaskProgressBar, console, plug_external_models
+from chisquarecosmo.util import DaskProgressBar, console
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -28,10 +28,6 @@ T_CLIParam = t.Tuple[str, str]
 T_CLIParams = t.Tuple[T_CLIParam, ...]
 T_GridParamSpec = t.Union[t.Type[FixedParamSpec], t.Type[ParamPartitionSpec]]
 T_GridParamSpecs = t.Dict[T_GridParamSpec, t.List]
-
-# Plug external models. Raise exceptions normally.
-# TODO: Needs more testing ⚠.
-plug_external_models()
 
 
 def _get_partition_spec(name: str, string: str):

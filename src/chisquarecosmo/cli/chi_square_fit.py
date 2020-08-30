@@ -12,7 +12,7 @@ from chisquarecosmo.cosmology import (
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import console, plug_external_models
+from chisquarecosmo.util import console
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -29,10 +29,6 @@ T_CLIParam = t.Tuple[str, str]
 T_CLIParams = t.Tuple[T_CLIParam, ...]
 T_FitParamSpec = t.Union[t.Type[FixedParamSpec], t.Type[FreeParamSpec]]
 T_FitParamSpecs = t.Dict[T_FitParamSpec, t.List]
-
-# Plug external models. Raise exceptions normally.
-# TODO: Needs more testing ⚠.
-plug_external_models()
 
 
 def validate_param(param: T_CLIParam):

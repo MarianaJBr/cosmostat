@@ -6,15 +6,11 @@ from chisquarecosmo.chi_square import (
     BestFitResult, has_best_fit
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import console, plug_external_models
+from chisquarecosmo.util import console
 from rich import box
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
-
-# Plug external models. Raise exceptions normally.
-# TODO: Needs more testing ⚠.
-plug_external_models()
 
 
 @click.command()
