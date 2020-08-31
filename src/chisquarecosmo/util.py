@@ -7,7 +7,7 @@ import typing as t
 from dask.callbacks import Callback
 from rich.console import Console, RenderableType
 from rich.padding import Padding
-from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+from rich.progress import BarColumn, Progress, TextColumn
 
 # Rich output console instances.
 console = Console()
@@ -49,7 +49,8 @@ columns = (
     TextColumn("[progress.description]{task.description}"),
     BarColumn(bar_width=None),
     TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-    TimeRemainingColumn(),
+    TextColumn("|"),
+    TextColumn("[progress.remaining]Elapsed time: {task.elapsed:>.2f}s"),
 )
 
 
@@ -61,18 +62,18 @@ class DaskProgressBar(Callback):
         total = sum(len(state[k]) for k in ["ready", "waiting", "running"])
         progress = RichProgressBar(*columns, console=console,
                                    auto_refresh=False)
-        self._rich_progress = progress
-        self._progress_task = progress.add_task("[red]Progress", total=total)
+        self.rich_progress = progress
+        self.main_task = progress.add_task("[red]Progress", total=total)
         progress.start()
 
     def _posttask(self, key, result, dsk, state, worker_id):
         """"""
-        progress_task = self._progress_task
-        self._rich_progress.update(progress_task, advance=1)
-        self._rich_progress.refresh()
+        progress_task = self.main_task
+        self.rich_progress.update(progress_task, advance=1)
+        self.rich_progress.refresh()
 
     def _finish(self, dsk, state, errored):
-        self._rich_progress.stop()
+        self.rich_progress.stop()
 
 
 # Environment variables that control the location of the external models.
