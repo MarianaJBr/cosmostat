@@ -169,14 +169,20 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
         raise CLIError(f"{err_msg}")
 
     # Perform checks.
-    if not force_output and out_file.exists():
-        with h5py.File(out_file, "r") as h5f:
-            base_group = h5f.get(base_group_name, None)
-            if base_group is not None:
-                if has_best_fit(base_group):
-                    message = f"a best-fit result already exists in " \
-                              f"{base_group}"
-                    raise CLIError(message)
+    if out_file.exists():
+        if out_file.is_dir():
+            raise CLIError(f"the output path {out_file} is a directory")
+        if not force_output:
+            with h5py.File(out_file, "r") as h5f:
+                base_group = h5f.get(base_group_name, None)
+                if base_group is not None:
+                    if has_best_fit(base_group):
+                        message = f"a best-fit result already exists in " \
+                                  f"{base_group}"
+                        raise CLIError(message)
+    else:
+        # Create the parent directories.
+        out_file.parent.mkdir(exist_ok=True, parents=True)
 
     def _by_name_order(spec: FreeParamSpec):
         """"""
