@@ -15,16 +15,17 @@ def init_register_datasets():
     _sne_dataset = sneia_union2_1.dataset
     _hz_dataset = hz_data.dataset
 
-    register_dataset(_bao_dataset)
-    register_dataset(_sne_dataset)
-    register_dataset(_hz_dataset)
-
     # CMB Dataset instance holds no real data.
     _cmb_dataset = Dataset(name="CMB",
                            label="CMB:Red Planck 2015 (3)",
                            # CMB data has three items, all rubbish.
                            data=np.empty(3),
                            cosmology_func="y_vec_cmb")
+
+    register_dataset(_bao_dataset)
+    register_dataset(_sne_dataset)
+    register_dataset(_hz_dataset)
+    register_dataset(_cmb_dataset)
 
     # Register dataset unions.
     _bao_dataset_join = DatasetJoin([_bao_dataset])
