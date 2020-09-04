@@ -29,7 +29,8 @@ from .constants_units import (
 
 # String used to join/separate the labels of several Datasets grouped
 # in a DatasetUnion object.
-DATASET_UNION_LABEL_SEP = " + "
+DATASET_JOIN_NAME_SEP = "+"
+DATASET_JOIN_LABEL_SEP = " + "
 
 QUAD_EPS_ABS = 1.49e-8
 
@@ -493,17 +494,18 @@ class DatasetJoin(t.Iterable):
     @classmethod
     def from_name(cls, name: str):
         """"""
-        names = name.split(DATASET_UNION_LABEL_SEP)
+        names = name.split(DATASET_JOIN_NAME_SEP)
         datasets = [get_dataset(label) for label in names]
         return cls(datasets)
 
     @property
     def name(self):
-        return "+".join([dataset.name for dataset in self.datasets])
+        return DATASET_JOIN_NAME_SEP.join(
+            [dataset.name for dataset in self.datasets])
 
     @property
     def label(self):
-        return DATASET_UNION_LABEL_SEP.join([
+        return DATASET_JOIN_LABEL_SEP.join([
             dataset.label for dataset in self.datasets])
 
     @property
