@@ -317,7 +317,7 @@ def find_best_fit(eos_model: Model,
                   datasets: DatasetJoin,
                   fixed_specs: t.List[FixedParamSpec],
                   free_specs: t.List[FreeParamSpec],
-                  callback: t.Callable):
+                  callback: t.Callable = None):
     """Execute the optimization procedure and return the best-fit result."""
 
     def _chi_square_func(_dataset: Dataset):

@@ -17,6 +17,7 @@ from click import BadParameter
 from rich import box
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
 from toolz import groupby
@@ -252,21 +253,30 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     console.print(Padding("Best-Fit Params Progress...", (1, 0, 1, 0)),
                   justify="center")
 
+    columns = (
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=None),
+    )
+    progress = Progress(*columns, console=console, auto_refresh=True)
+
     def optimization_callback(x: t.Tuple[float, ...],
                               convergence: float = None):
         """Show a progress message for each iteration."""
         params_dict = dict(zip(free_spec_names, x))
         params_dict.update(fixed_specs_dict)
         params_obj = params_cls(**params_dict)
-        console.print("---", justify="center")
-        text = f"[bold deep_sky_blue1]{params_obj}[/]"
-        console.print(Padding(text, (0, 1, 0, 1)), justify="center")
+        text = console.highlighter(str(dict(params_obj._asdict())))
+        progress.console.log(Padding(text, (0, 0, 1, 0)), justify="center")
 
-    best_fit_result = find_best_fit(_eos_model,
-                                    datasets,
-                                    fixed_specs,
-                                    free_specs,
-                                    callback=optimization_callback)
+    with progress:
+        task1 = progress.add_task("[red]Progress", start=False)
+        progress.update(task1, total=10)
+        best_fit_result = find_best_fit(_eos_model,
+                                        datasets,
+                                        fixed_specs,
+                                        free_specs,
+                                        callback=optimization_callback)
+
     with h5py.File(out_file, file_mode) as h5f:
         best_fit_result.save(h5f, base_group_name, force_output)
 
