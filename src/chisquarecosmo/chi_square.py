@@ -78,7 +78,7 @@ T_FixedParamSpecs = t.List[FixedParamSpec]
 
 
 @dataclass
-class BestFitResult:
+class BestFit:
     """Represent the result of a SciPy optimization routine."""
     eos_model: Model
     datasets: DatasetJoin
@@ -369,16 +369,16 @@ def make_best_fit_result(eos_model: Model,
     omega_m = (omegabh2 + omegach2) / h ** 2
     bic = chi_square_min + num_free_params * np.log(num_data)
     aic = chi_square_min + 2 * num_data
-    best_fit_result = BestFitResult(eos_model=eos_model,
-                                    datasets=datasets,
-                                    params=best_fit_params,
-                                    free_params=free_specs,
-                                    eos_today=eos_today,
-                                    chi_square_min=chi_square_min,
-                                    chi_square_reduced=chi_square_reduced,
-                                    omega_m=omega_m,
-                                    aic=aic, bic=bic,
-                                    optimization_info=optimization_info)
+    best_fit_result = BestFit(eos_model=eos_model,
+                              datasets=datasets,
+                              params=best_fit_params,
+                              free_params=free_specs,
+                              eos_today=eos_today,
+                              chi_square_min=chi_square_min,
+                              chi_square_reduced=chi_square_reduced,
+                              omega_m=omega_m,
+                              aic=aic, bic=bic,
+                              optimization_info=optimization_info)
     return best_fit_result
 
 
