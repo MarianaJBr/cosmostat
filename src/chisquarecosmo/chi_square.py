@@ -254,15 +254,15 @@ def best_fit_params_from_array(data: np.ndarray, params_cls: t.Type[Params]):
     return params_cls(**params_dict)
 
 
-def fixed_specs_as_array(specs: T_FixedParamSpecs):
+def fixed_specs_as_array(specs: t.Dict[str, float]):
     """Convert several fixed parameter specs to a numpy array."""
-    param_items = [astuple(param) for param in specs]
+    param_items = [tuple(param) for param in specs.items()]
     return np.array(param_items, dtype=_fixed_param_dtype)
 
 
 def fixed_specs_from_array(data: np.ndarray):
     """Retrieve the fixed parameter specs from a numpy array."""
-    return [FixedParamSpec(*tuple(item)) for item in data]
+    return dict(tuple(item) for item in data)
 
 
 def free_spec_as_array(spec: FreeParamSpec):
@@ -383,18 +383,13 @@ def make_best_fit_result(eos_model: Model,
 
 
 @dataclass
-class GridResult:
-    """"""
+class Grid:
+    """Represent a chi-square evaluation over a parameter grid."""
     eos_model: Model
     datasets: DatasetJoin
-    fixed_params: T_FixedParamSpecs
-    param_partitions: T_ParamPartitionSpecs
+    fixed_params: t.Dict[str, float]
+    partition_arrays: t.Dict[str, np.ndarray]
     chi_square_data: np.ndarray
-
-    @property
-    def partition_arrays(self):
-        """A dictionary with the partition arrays."""
-        return dict(map(astuple, self.param_partitions))
 
     def save(self, file: h5py.File,
              group_name: str = None,
@@ -418,8 +413,8 @@ class GridResult:
 
         # Create a group to save the grid partition arrays.
         arrays_group = group.create_group(PARAM_PARTITIONS_GROUP_LABEL)
-        for partition in self.param_partitions:
-            arrays_group.create_dataset(partition.name, data=partition.data)
+        for name, data in self.partition_arrays.items():
+            arrays_group.create_dataset(name, data=data)
 
         # Save the chi-square grid data.
         group.create_dataset("chi_square", data=self.chi_square_data)
@@ -439,7 +434,7 @@ class GridResult:
         fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
 
         # Load partition arrays.
-        param_partitions = []
+        partition_items = []
         arrays_group: h5py.Group = group[PARAM_PARTITIONS_GROUP_LABEL]
         arrays_group_keys = list(arrays_group.keys())
         for key in arrays_group_keys:
@@ -448,7 +443,7 @@ class GridResult:
             if isinstance(item, h5py.Dataset):
                 name = key
                 data = item[()]
-                param_partitions.append(ParamPartitionSpec(name, data))
+                partition_items.append((name, data))
 
         # Load chi-square data.
         chi_square = group["chi_square"][()]
@@ -457,7 +452,7 @@ class GridResult:
         return cls(eos_model=eos_model,
                    datasets=datasets,
                    fixed_params=fixed_params,
-                   param_partitions=param_partitions,
+                   partition_arrays=dict(partition_items),
                    chi_square_data=chi_square)
 
 
@@ -467,8 +462,8 @@ def has_grid(group: h5py.Group):
 
 
 @dataclass
-class Grid:
-    """Represent a grid """
+class GridExecutor:
+    """Executes a grid."""
     eos_model: Model
     datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
@@ -536,11 +531,18 @@ class Grid:
         chi_square_data = indexes_bag.map(grid_func).compute()
         chi_square_array: np.ndarray = np.asarray(chi_square_data).reshape(
             grid_shape)
-        return GridResult(eos_model=self.eos_model,
-                          datasets=self.datasets,
-                          fixed_params=self.fixed_params,
-                          param_partitions=param_partitions,
-                          chi_square_data=chi_square_array)
+        fixed_params_dict = {spec.name: spec.value for spec in
+                             self.fixed_params}
+        # The parameter order used to evaluate the grid is defined by the
+        # param_partition list order. Converting to a dictionary as follows
+        # preserves this order since, in Python>=3.7, dictionaries keep their
+        # items sorted according to their insertion order.
+        partition_arrays = dict(map(astuple, param_partitions))
+        return Grid(eos_model=self.eos_model,
+                    datasets=self.datasets,
+                    fixed_params=fixed_params_dict,
+                    partition_arrays=partition_arrays,
+                    chi_square_data=chi_square_array)
 
 
 @dataclass

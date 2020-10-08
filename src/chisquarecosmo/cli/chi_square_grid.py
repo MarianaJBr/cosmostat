@@ -5,7 +5,7 @@ import click
 import h5py
 import numpy as np
 from chisquarecosmo.chi_square import (
-    FixedParamSpec, Grid, ParamPartitionSpec, has_grid
+    FixedParamSpec, GridExecutor, ParamPartitionSpec, has_grid
 )
 from chisquarecosmo.cosmology import (
     get_dataset_join, get_model, registered_dataset_joins,
@@ -342,10 +342,10 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
                   justify="center")
 
     # Grid object.
-    grid = Grid(eos_model=_eos_model,
-                datasets=datasets,
-                fixed_params=fixed_specs,
-                param_partitions=partition_specs)
+    grid = GridExecutor(eos_model=_eos_model,
+                        datasets=datasets,
+                        fixed_params=fixed_specs,
+                        param_partitions=partition_specs)
 
     with DaskProgressBar():
         grid_result = grid.eval()
