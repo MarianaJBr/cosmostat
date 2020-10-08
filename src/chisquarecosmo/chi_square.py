@@ -4,7 +4,8 @@ from dataclasses import astuple, dataclass, field
 import h5py
 import numpy as np
 from dask import bag
-from scipy.optimize import OptimizeResult, differential_evolution
+from scipy.interpolate import UnivariateSpline
+from scipy.optimize import OptimizeResult, differential_evolution, newton
 
 from .cosmology import (
     Dataset, DatasetJoin, Model, Params, get_model
@@ -540,3 +541,79 @@ class Grid:
                           fixed_params=self.fixed_params,
                           param_partitions=param_partitions,
                           chi_square_data=chi_square_array)
+
+
+@dataclass
+class ConfidenceInterval:
+    """Represent a parameter confidence interval."""
+    best_fit: float
+    lower_bound: float
+    upper_bound: float
+
+    @property
+    def lower_error(self):
+        return abs(self.best_fit - self.lower_bound)
+
+    @property
+    def upper_error(self):
+        return abs(self.upper_bound - self.best_fit)
+
+
+@dataclass
+class ParamGrid:
+    """Represent a chi-square grid over a single parameter partition."""
+    partition: np.ndarray
+    chi_square: np.ndarray
+
+    # Private attributes.
+    chi_square_min: float = field(default=None, init=False, repr=False)
+    spl_func: t.Callable[[np.ndarray], np.ndarray] = \
+        field(default=None, init=False, repr=False)
+
+    def __post_init__(self):
+        """Post-initialization stage."""
+        self.chi_square_min = self.chi_square.min()
+        spl_func = UnivariateSpline(self.partition, self.chi_square, s=0)
+        self.spl_func = spl_func
+
+    def make_confidence_func(self, chi_square_delta: float,
+                             chi_square_min: float):
+        """Build a function whose zeros give confidence interval."""
+
+        def confidence_func(x: t.Any):
+            """The actual confidence function."""
+            return self.spl_func(x) - (chi_square_min + chi_square_delta)
+
+        return confidence_func
+
+    def get_confidence_interval(self, chi_square_delta: float,
+                                chi_square_min: float = None,
+                                ini_guess: float = None,
+                                delta_ini_guess: float = None):
+        """Return the confidence interval for the given delta chi-square."""
+        partition = self.partition
+        chi_square = self.chi_square
+        chi_square_min = chi_square_min or self.chi_square_min
+        # Build the confidence function.
+        confidence_func = self.make_confidence_func(chi_square_delta,
+                                                    chi_square_min)
+        if ini_guess is None:
+            # Find the index of the ``x`` parameter that corresponds to the
+            # minimum chi-square.
+            min_index = np.nonzero(chi_square == self.chi_square_min)
+            assert np.size(min_index) == 1
+            ini_guess = partition[min_index][0]
+        min_diff = min(partition.max() - ini_guess,
+                       ini_guess - partition.min())
+        # Try to find the lower bound. Use the secant method, where one of
+        # the starting approximations is the best-fit value of the parameter.
+        # The second approximation is a value slightly lower than the best-fit.
+        delta_ini_guess = delta_ini_guess or min_diff / 4
+        xl, xu = ini_guess - delta_ini_guess, ini_guess
+        x_lower, *info = newton(confidence_func, xl, x1=xu, disp=True,
+                                full_output=True)
+        # Try to find the upper bound.
+        xl, xu = ini_guess, ini_guess + delta_ini_guess
+        x_upper, *info = newton(confidence_func, xl, x1=xu, full_output=True)
+        # Return the confidence interval.
+        return ConfidenceInterval(ini_guess, x_lower, x_upper)
