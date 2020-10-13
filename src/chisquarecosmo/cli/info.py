@@ -39,8 +39,8 @@ def info(models: bool, datasets: bool):
             data_table = Table(expand=True)
             data_table.add_column("Name", justify="center", ratio=1)
             data_table.add_column("Default Value", justify="center", ratio=1)
-            param_names = model.params_cls._fields
-            param_defaults = model.params_cls._field_defaults
+            param_names = getattr(model.params_cls, "_fields")
+            param_defaults = getattr(model.params_cls, "_field_defaults")
             for param_name in param_names:
                 value = param_defaults.get(param_name, "---")
                 data_table.add_row(f"{param_name}", f"{value}")

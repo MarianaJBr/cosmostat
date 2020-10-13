@@ -140,8 +140,8 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     free_specs: t.List[FreeParamSpec] = param.get(FreeParamSpec, [])
 
     # Parameters defined for the current model/eos.
-    param_names = list(params_cls._fields)
-    defaults_dict = params_cls._field_defaults
+    param_names = getattr(params_cls, "_fields")
+    defaults_dict = getattr(params_cls, "_field_defaults")
     names_with_defaults = set(defaults_dict.keys())
     fixed_spec_name_set = set(spec.name for spec in fixed_specs)
     free_spec_name_set = set(spec.name for spec in free_specs)

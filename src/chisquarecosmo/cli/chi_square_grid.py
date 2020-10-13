@@ -219,8 +219,8 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
         param.get(ParamPartitionSpec, [])
 
     # Parameters defined for the current model/eos.
-    param_names = list(params_cls._fields)
-    defaults_dict = params_cls._field_defaults
+    param_names = list(getattr(params_cls, "_fields"))
+    defaults_dict = getattr(params_cls, "_field_defaults")
     names_with_defaults = set(defaults_dict)
     fixed_names_set = {spec.name for spec in fixed_specs}
     partition_names_set = {spec.name for spec in partition_specs}
