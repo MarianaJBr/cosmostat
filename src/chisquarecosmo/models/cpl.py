@@ -1,10 +1,10 @@
 import typing as t
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import numpy as np
 from chisquarecosmo.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
 from chisquarecosmo.cosmology import (
-    Model as BaseModel, Params as ParamsBase,
+    Functions as BaseFunctions, Model, Params as ParamsBase,
     T_CosmologyFunc
 )
 from numba import jit
@@ -50,7 +50,8 @@ def wz(z: float, params: Params):
 def f_dez(z: float, params: Params):
     """Analytical integral for the CPL eos.
 
-    exp(3*Integral_o^z{[(1+w)/1+z]dz})  = exp(-3*wa*z/(1+z)) * (1+z)^{3(1+w0+wa)}
+    exp(3*Integral_o^z{[(1+w)/1+z]dz}) = \
+        exp(-3*wa*z/(1+z)) * (1+z)^{3(1+w0+wa)}
     :param z: redshift
     :param params: w0 and wa
     :return: exp(-3*wa*z/(1+z)) * (1+z)^{3(1+w0+wa)}
@@ -67,7 +68,7 @@ def f_dez(z: float, params: Params):
 
 
 @dataclass
-class Model(BaseModel):
+class Functions(BaseFunctions):
     """"""
 
     def _make_wz_func(self) -> T_CosmologyFunc:
@@ -79,6 +80,13 @@ class Model(BaseModel):
         return f_dez
 
 
-# Model definition.
+# Singleton with the model functions.
+functions = Functions()
+
+# Dictionary of the functions.
+functions_dict = asdict(functions)
+
+# Singleton with the model definition.
 model = Model(name="CPL",
-              params_cls=Params)
+              params_cls=Params,
+              functions=functions)

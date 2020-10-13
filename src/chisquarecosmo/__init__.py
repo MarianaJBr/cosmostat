@@ -5,12 +5,13 @@
     background quantities.
 """
 from .cosmology import (
-    Dataset, DatasetJoin, Likelihood, Model, Params, get_dataset,
+    Dataset, DatasetJoin, Model, Params, get_dataset,
     get_dataset_join, get_model, register_dataset, register_dataset_join,
     register_model, registered_dataset_joins, registered_datasets,
     registered_models
 )
 from .data import init_register_datasets
+from .likelihood import Likelihood
 from .models import init_register_models
 from .util import plug_external_models
 
@@ -33,6 +34,7 @@ __all__ = [
     "Model",
     "Params",
     "get_dataset",
+    "get_dataset_join",
     "get_model",
     "plug_external_models",
     "register_dataset",

@@ -16,14 +16,14 @@ It is based on Planck 2015 Cosmological Parameters report
 """
 import typing as t
 from abc import ABCMeta, abstractmethod
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from math import sqrt
 
 import numpy as np
 from scipy import integrate
 
 from .constants_units import (
-    COVMATCMB_3, H0P, OMEGAG0, OMEGAR0, RHOCR0, ZDEC,
+    H0P, OMEGAG0, OMEGAR0, RHOCR0, ZDEC,
     ZDRAG
 )
 
@@ -73,87 +73,15 @@ class Dataset:
 
 
 # Type hints for cosmological functions.
-T_CosmologyFunc = t.Callable[[float, Params], float]
-T_CMBCosmologyFunc = t.Callable[[Params], float]
-
-# Type hints for likelihood functions.
-T_LikelihoodTheoryFunc = T_CosmologyFunc
-T_LikelihoodResidualsFunc = t.Callable[[Params], np.ndarray]
-T_LikelihoodFunc = t.Callable[[Params], float]
+T_CosmologyFunc = t.Union[
+    t.Callable[[float, Params], float],
+    t.Callable[[Params], float]
+]
 
 
 @dataclass
-class Likelihood:
-    """Groups likelihood functions for a specific model and dataset."""
-    dataset: Dataset
-    theory_func: T_LikelihoodTheoryFunc = field(default=None)
-    residuals_func: T_LikelihoodResidualsFunc = field(init=False, default=None)
-    chi_square: T_LikelihoodFunc = field(init=False, default=None)
-
-    def __post_init__(self):
-        """"""
-        self.residuals_func = self._make_residuals_func()
-        self.chi_square = self._make_chi_square_func()
-
-    def _make_residuals_func(self) -> t.Optional[T_LikelihoodResidualsFunc]:
-        """Build the residuals function."""
-        data = self.dataset.data
-        theory_func = self.theory_func
-
-        def residuals_func(params: Params):
-            """Returns a vector/array with the residuals."""
-            zi_data, obs_data, err_data = data.T
-            th_func = np.array([theory_func(zi, params) for zi in zi_data])
-            return (obs_data - th_func) / err_data
-
-        return residuals_func
-
-    def _make_chi_square_func(self):
-        """Build the chi-square function."""
-        residuals_func = self.residuals_func
-
-        def chi_square(params: Params):
-            """Standard chi-square function."""
-            return float(np.sum(residuals_func(params) ** 2))
-
-        return chi_square
-
-
-# Type hint for the  CMB chi2 function.
-T_CMBLikelihoodTheoryFunc = t.Callable[[Params], np.ndarray]
-
-
-@dataclass
-class CMBLikelihood:
-    """Groups likelihood functions for a specific model and dataset."""
-    dataset: Dataset
-    theory_func: T_CMBLikelihoodTheoryFunc = field(default=None)
-    chi_square: T_LikelihoodFunc = field(init=False, default=None)
-
-    def __post_init__(self):
-        """"""
-        self.chi_square = self._make_chi_square_func()
-
-    def _make_chi_square_func(self):
-        """Build the chi-square function."""
-        y_cmb_func = self.theory_func
-
-        def cmb_chi_square(params: Params):
-            """Standard chi-square function."""
-            y_cmb = y_cmb_func(params)
-            covmat = COVMATCMB_3  # 4x4 matrix, including ns
-            covmat_inv = np.linalg.inv(covmat)
-            # base_TTlowP.covmat from Planck DE&MG 2015 Table 4
-            return float(np.dot(y_cmb, np.dot(covmat_inv, y_cmb)))
-
-        return cmb_chi_square
-
-
-@dataclass
-class Model(metaclass=ABCMeta):
-    """Represents a cosmological model."""
-    name: str
-    params_cls: t.Type[Params]
+class Functions(metaclass=ABCMeta):
+    """Represent the cosmological model functions."""
 
     # Cosmological functions
     wz: T_CosmologyFunc = field(init=False, default=None, repr=False)
@@ -169,11 +97,9 @@ class Model(metaclass=ABCMeta):
     hz_hubble_flat: T_CosmologyFunc = \
         field(init=False, default=None, repr=False)
     d_ang: T_CosmologyFunc = field(init=False, default=None, repr=False)
-    r_cmb: T_CMBCosmologyFunc = field(init=False, default=None, repr=False)
-    theta_star: T_CMBCosmologyFunc = field(init=False, default=None, repr=False)
-    l_a: T_CMBCosmologyFunc = field(init=False, default=None, repr=False)
-    y_vec_cmb: T_CMBLikelihoodTheoryFunc = \
-        field(init=False, default=None, repr=False)
+    r_cmb: T_CosmologyFunc = field(init=False, default=None, repr=False)
+    theta_star: T_CosmologyFunc = field(init=False, default=None, repr=False)
+    l_a: T_CosmologyFunc = field(init=False, default=None, repr=False)
 
     def __post_init__(self):
         """"""
@@ -193,14 +119,6 @@ class Model(metaclass=ABCMeta):
         self.r_cmb = self._make_r_cmb()
         self.theta_star = self._make_theta_star()
         self.l_a = self._make_l_a_func()
-        self.y_vec_cmb = self._make_y_vec_cmb_func()
-
-    def make_likelihood(self, dataset: Dataset):
-        """Return a likelihood object using the given dataset."""
-        theory_func = asdict(self)[dataset.cosmology_func]
-        if dataset.name == "CMB":
-            return CMBLikelihood(dataset, theory_func)
-        return Likelihood(dataset, theory_func)
 
     @abstractmethod
     def _make_wz_func(self) -> T_CosmologyFunc:
@@ -262,11 +180,11 @@ class Model(metaclass=ABCMeta):
     def _make_r_s_integrand(self):
         """"""
         hubble_flat = self.hubble_flat
-        _btog = self.b_to_g
+        _b_to_g = self.b_to_g
 
         def r_s_integrand(z: float, params: Params):
             """ flat universe """
-            cs = 1 / sqrt(3 * (1 + _btog(z, params)))
+            cs = 1 / sqrt(3 * (1 + _b_to_g(z, params)))
             return cs / hubble_flat(z, params)
 
         return r_s_integrand
@@ -475,6 +393,20 @@ class Model(metaclass=ABCMeta):
             return y_cmb
 
         return y_vec_cmb
+
+
+@dataclass(frozen=True)
+class Model:
+    """Represent a cosmological model."""
+
+    # The model name.
+    name: str
+
+    # The parameter class that defines the model parameters.
+    params_cls: t.Type[Params] = field(repr=False)
+
+    # The model functions.
+    functions: Functions = field(repr=False)
 
 
 @dataclass

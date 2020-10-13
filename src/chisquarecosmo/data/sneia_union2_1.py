@@ -12,7 +12,7 @@ OBS_SNE = sne_file[:, 1]
 ERROR_SNE = sne_file[:, 2] * sne_file[:, 2]
 # square root of the errors to standardize with JLa
 
-# DATA_SNE = np.stack((REDSHIFTS_SNE, OBS_SNE, ERROR_SNE), axis=1)
+DATA_SNE_SQR = np.stack((REDSHIFTS_SNE, OBS_SNE, ERROR_SNE), axis=1)
 DATA_SNE = sne_file
 
 dataset = Dataset(name="SNe",

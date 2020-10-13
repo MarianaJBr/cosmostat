@@ -1,13 +1,13 @@
 import os
 import typing as t
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import lru_cache
 from math import exp
 
 import numpy as np
 from chisquarecosmo.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
 from chisquarecosmo.cosmology import (
-    Model as BaseModel, Params as ParamsBase,
+    Functions as BaseFunctions, Model, Params as ParamsBase,
     T_CosmologyFunc
 )
 from numba import carray, cfunc, jit, types
@@ -148,7 +148,7 @@ def f_dez(z: float, params: Params):
 
 
 @dataclass
-class Model(BaseModel):
+class Functions(BaseFunctions):
     """Gus model."""
 
     def _make_wz_func(self) -> T_CosmologyFunc:
@@ -160,5 +160,13 @@ class Model(BaseModel):
         return f_dez_fast
 
 
+# Singleton with the model functions.
+functions = Functions()
+
+# Dictionary of the functions.
+functions_dict = asdict(functions)
+
+# Singleton with the model definition.
 model = Model(name="ONE",
-              params_cls=Params)
+              params_cls=Params,
+              functions=functions)

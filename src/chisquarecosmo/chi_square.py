@@ -7,9 +7,9 @@ from dask import bag
 from scipy.optimize import OptimizeResult, differential_evolution
 
 from .cosmology import (
-    Dataset, DatasetJoin, Likelihood, Model, Params, T_LikelihoodFunc,
-    get_model
+    Dataset, DatasetJoin, Model, Params, get_model
 )
+from .likelihood import Likelihood, T_LikelihoodFunc
 
 # Name of the HDF5 groups used to store best-fit and grid results.
 ROOT_GROUP_NAME = "/"
@@ -322,7 +322,7 @@ def find_best_fit(eos_model: Model,
 
     def _chi_square_func(_dataset: Dataset):
         """Return the chi-square function for a given dataset."""
-        return eos_model.make_likelihood(_dataset).chi_square
+        return Likelihood(eos_model, _dataset).chi_square
 
     params_cls = eos_model.params_cls
     chi_square_funcs = [_chi_square_func(dataset) for dataset in datasets]
@@ -355,7 +355,7 @@ def make_best_fit_result(eos_model: Model,
                          optimization_info: T_OptimizationInfo):
     """Create a proper BestFitResult instance from data."""
     # EOS today.
-    eos_today = eos_model.wz(0, best_fit_params)
+    eos_today = eos_model.functions.wz(0, best_fit_params)
     # Minimum of chi-square.
     chi_square_min = optimization_info["fun"]
     num_data = datasets.length
@@ -490,7 +490,7 @@ class Grid:
         datasets = self.datasets
         param_partitions = self.param_partitions
         param_partition_names = [spec.name for spec in param_partitions]
-        likelihoods = [model.make_likelihood(dataset) for dataset in datasets]
+        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
         # Set private attributes.
         self.param_partition_names = param_partition_names
         self.likelihoods = likelihoods
