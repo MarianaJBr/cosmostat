@@ -3,7 +3,7 @@ import pathlib
 import click
 import h5py
 from chisquarecosmo.chi_square import (
-    BestFitResult, has_best_fit
+    BestFit, has_best_fit
 )
 from chisquarecosmo.exceptions import CLIError
 from chisquarecosmo.util import console
@@ -33,7 +33,7 @@ def describe_fit(file: str, hdf5_group: str):
         if not has_best_fit(base_group):
             err_msg = f"no best-fit result found in {base_group}"
             raise CLIError(err_msg)
-        fit_result = BestFitResult.load(h5f, group_name)
+        fit_result = BestFit.load(h5f, group_name)
         # Display minimization process information.
     title_text = Text("chisquarecosmo - Best-Fit Result Description")
     title_text.stylize("bold red")
