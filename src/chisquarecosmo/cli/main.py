@@ -5,12 +5,14 @@ import click
 from .chi_square_fit import chi_square_fit
 from .chi_square_grid import chi_square_grid
 from .describe_fit import describe_fit
+from .describe_fit_legacy import describe_fit_legacy
 from .info import info
 
 COMMANDS = {
     "chi-square-fit": chi_square_fit,
     "chi-square-grid": chi_square_grid,
     "describe-fit": describe_fit,
+    "describe-fit-legacy": describe_fit_legacy,
     "info": info
 }
 
