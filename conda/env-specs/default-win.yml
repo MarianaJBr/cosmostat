@@ -21,4 +21,4 @@ dependencies:
   - click
   - dataclasses
   - rich
-  - jq
+  - m2w64-jq
