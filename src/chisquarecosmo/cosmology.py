@@ -17,6 +17,7 @@ It is based on Planck 2015 Cosmological Parameters report
 import typing as t
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
+from functools import lru_cache
 from math import sqrt
 
 import numpy as np
@@ -134,6 +135,7 @@ class Functions(metaclass=ABCMeta):
         """"""
         f_dez = self.f_dez
 
+        @lru_cache(maxsize=1024 * 1024)
         def hubble_flat(z: float, params: Params):
             """Hubble function in terms of OmegaMatter flat universe."""
             h = params.h

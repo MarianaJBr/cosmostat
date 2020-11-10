@@ -116,7 +116,7 @@ def _f_dez_integrand_cfunc(num_params: int, params_pointer: int):
 f_dez_integrand_cfunc = LowLevelCallable(_f_dez_integrand_cfunc.ctypes)
 
 
-@lru_cache(maxsize=1024)
+@lru_cache(maxsize=1024 * 1024)
 def f_dez_fast(z: float, params: Params) -> float:
     """Integral of DE eos for Hubble function using a
     LowLevelCallable.
