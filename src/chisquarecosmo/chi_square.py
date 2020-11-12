@@ -383,80 +383,6 @@ def make_best_fit_result(eos_model: Model,
     return best_fit_result
 
 
-@dataclass
-class Grid:
-    """Represent a chi-square evaluation over a parameter grid."""
-    eos_model: Model
-    datasets: DatasetJoin
-    fixed_params: t.Dict[str, float]
-    partition_arrays: t.Dict[str, np.ndarray]
-    chi_square_data: np.ndarray
-
-    def save(self, file: h5py.File,
-             group_name: str = None,
-             force: bool = False):
-        """Save a grid result to an HDF5 file."""
-        if group_name is None or group_name == ROOT_GROUP_NAME:
-            base_group = file[ROOT_GROUP_NAME]
-        else:
-            base_group = file.get(group_name, None)
-            if base_group is None:
-                base_group = file.create_group(group_name)
-        if GRID_GROUP_LABEL in base_group and force:
-            del base_group[GRID_GROUP_LABEL]
-        group = base_group.create_group(GRID_GROUP_LABEL)
-
-        # Save the attributes that define the result.
-        group.attrs["eos_model"] = self.eos_model.name
-        group.attrs["datasets"] = self.datasets.name
-        group.attrs["datasets_label"] = self.datasets.label
-        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_params)
-
-        # Create a group to save the grid partition arrays.
-        arrays_group = group.create_group(PARAM_PARTITIONS_GROUP_LABEL)
-        for name, data in self.partition_arrays.items():
-            arrays_group.create_dataset(name, data=data)
-
-        # Save the chi-square grid data.
-        group.create_dataset("chi_square", data=self.chi_square_data)
-
-    @classmethod
-    def load(cls, file: h5py.File,
-             group_name: str = None):
-        """Load a grid result from an HDF5 file."""
-        base_group: h5py.Group = file["/"] if group_name is None else \
-            file[group_name]
-        group = base_group[GRID_GROUP_LABEL]
-
-        # Load grid result attributes.
-        group_attrs = dict(group.attrs)
-        eos_model = get_model(group_attrs["eos_model"])
-        datasets = DatasetJoin.from_name(group_attrs["datasets"])
-        fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
-
-        # Load partition arrays.
-        partition_items = []
-        arrays_group: h5py.Group = group[PARAM_PARTITIONS_GROUP_LABEL]
-        arrays_group_keys = list(arrays_group.keys())
-        for key in arrays_group_keys:
-            item = arrays_group[key]
-            # Load numpy arrays from data sets.
-            if isinstance(item, h5py.Dataset):
-                name = key
-                data = item[()]
-                partition_items.append((name, data))
-
-        # Load chi-square data.
-        chi_square = group["chi_square"][()]
-
-        # Make a new instance.
-        return cls(eos_model=eos_model,
-                   datasets=datasets,
-                   fixed_params=fixed_params,
-                   partition_arrays=dict(partition_items),
-                   chi_square_data=chi_square)
-
-
 def has_grid(group: h5py.Group):
     """Check if a grid result exists in an HDF5 group."""
     return GRID_GROUP_LABEL in group
@@ -557,6 +483,80 @@ class GridExecutor(Iterable):
 
     def __iter__(self):
         raise NotImplementedError
+
+
+@dataclass
+class Grid:
+    """Represent a chi-square evaluation over a parameter grid."""
+    eos_model: Model
+    datasets: DatasetJoin
+    fixed_params: t.Dict[str, float]
+    partition_arrays: t.Dict[str, np.ndarray]
+    chi_square_data: np.ndarray
+
+    def save(self, file: h5py.File,
+             group_name: str = None,
+             force: bool = False):
+        """Save a grid result to an HDF5 file."""
+        if group_name is None or group_name == ROOT_GROUP_NAME:
+            base_group = file[ROOT_GROUP_NAME]
+        else:
+            base_group = file.get(group_name, None)
+            if base_group is None:
+                base_group = file.create_group(group_name)
+        if GRID_GROUP_LABEL in base_group and force:
+            del base_group[GRID_GROUP_LABEL]
+        group = base_group.create_group(GRID_GROUP_LABEL)
+
+        # Save the attributes that define the result.
+        group.attrs["eos_model"] = self.eos_model.name
+        group.attrs["datasets"] = self.datasets.name
+        group.attrs["datasets_label"] = self.datasets.label
+        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_params)
+
+        # Create a group to save the grid partition arrays.
+        arrays_group = group.create_group(PARAM_PARTITIONS_GROUP_LABEL)
+        for name, data in self.partition_arrays.items():
+            arrays_group.create_dataset(name, data=data)
+
+        # Save the chi-square grid data.
+        group.create_dataset("chi_square", data=self.chi_square_data)
+
+    @classmethod
+    def load(cls, file: h5py.File,
+             group_name: str = None):
+        """Load a grid result from an HDF5 file."""
+        base_group: h5py.Group = file["/"] if group_name is None else \
+            file[group_name]
+        group = base_group[GRID_GROUP_LABEL]
+
+        # Load grid result attributes.
+        group_attrs = dict(group.attrs)
+        eos_model = get_model(group_attrs["eos_model"])
+        datasets = DatasetJoin.from_name(group_attrs["datasets"])
+        fixed_params = fixed_specs_from_array(group_attrs["fixed_params"])
+
+        # Load partition arrays.
+        partition_items = []
+        arrays_group: h5py.Group = group[PARAM_PARTITIONS_GROUP_LABEL]
+        arrays_group_keys = list(arrays_group.keys())
+        for key in arrays_group_keys:
+            item = arrays_group[key]
+            # Load numpy arrays from data sets.
+            if isinstance(item, h5py.Dataset):
+                name = key
+                data = item[()]
+                partition_items.append((name, data))
+
+        # Load chi-square data.
+        chi_square = group["chi_square"][()]
+
+        # Make a new instance.
+        return cls(eos_model=eos_model,
+                   datasets=datasets,
+                   fixed_params=fixed_params,
+                   partition_arrays=dict(partition_items),
+                   chi_square_data=chi_square)
 
 
 @dataclass
