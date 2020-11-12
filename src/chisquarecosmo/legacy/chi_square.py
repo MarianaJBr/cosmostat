@@ -9,8 +9,8 @@ import numpy as np
 from chisquarecosmo import DatasetJoin, Params, get_model
 from chisquarecosmo.chi_square import (
     Grid as BaseGrid, GridExecutor as GridExecutorBase,
-    PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME, T_ParamPartitionSpecs,
-    fixed_specs_as_array, fixed_specs_from_array
+    PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME, fixed_specs_as_array,
+    fixed_specs_from_array
 )
 
 from .likelihood import Likelihood
@@ -19,22 +19,13 @@ PARTITION_GRID_DATASET_LABEL = "DataGrid"
 CHI_SQUARE_DATASET_LABEL = "Chi2"
 
 
-def grid_func_base(value_indexes: t.Tuple[int, ...],
-                   param_partition: T_ParamPartitionSpecs,
-                   free_names: t.List[str],
-                   fixed_params_dict: t.Dict[str, float],
-                   params_cls: t.Type[Params],
+def grid_func_base(params: Params,
                    chi_square_funcs: t.List[t.Callable[[Params], float]]):
     """Grid function.
 
     Evaluates the chi-square function.
     """
-    grid_values = [param_partition[grid_idx].data[value_idx] for
-                   grid_idx, value_idx in enumerate(value_indexes)]
-    params_dict = dict(zip(free_names, grid_values))
-    params_dict.update(fixed_params_dict)
-    params_obj = params_cls(**params_dict)
-    return sum(func(params_obj) for func in chi_square_funcs)
+    return sum(func(params) for func in chi_square_funcs)
 
 
 @dataclass
@@ -54,47 +45,20 @@ class GridExecutor(GridExecutorBase):
         # Set private attributes.
         self.param_partition_names = param_partition_names
         self.likelihoods = likelihoods
+        self.grid_func = self._make_grid_func()
 
     def _make_grid_func(self):
         """Make the function to evaluate on the grid."""
-        eos_model = self.eos_model
         likelihoods = self.likelihoods
-        fixed_params = self.fixed_params
-        free_names = self.param_partition_names
-        param_partition = self.param_partitions
-        params_cls = eos_model.params_cls
         chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
-        fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
-
-        return partial(grid_func_base,
-                       param_partition=param_partition,
-                       free_names=free_names,
-                       fixed_params_dict=fixed_params_dict,
-                       params_cls=params_cls,
-                       chi_square_funcs=chi_square_funcs)
+        return partial(grid_func_base, chi_square_funcs=chi_square_funcs)
 
     def eval(self):
         """Evaluates the chi-square on the grid."""
-        grid_func = self._make_grid_func()
         param_partitions = self.param_partitions
         grid_shape = tuple(
             partition.data.size for partition in param_partitions)
-        grid_size = int(np.prod(grid_shape))
-
-        # Evaluate the grid using a multidimensional iterator. This
-        # way we do not allocate memory for all the combinations of
-        # parameter values that form the grid.
-        grid_indexes = np.ndindex(*grid_shape)
-        num_processes = os.cpu_count()
-        # NOTE: there is no a special reason to use this chunk size.
-        chunk_size = max(grid_size // num_processes, 16)
-        chi_square_data = []
-        with Pool() as pool_exec:
-            results_imap = pool_exec.imap(grid_func, grid_indexes,
-                                          chunksize=chunk_size)
-            for idx, grid_elem in enumerate(results_imap):
-                chi_square_data.append(grid_elem)
-                yield idx
+        chi_square_data = list(self)
         chi_square_array = np.asarray(chi_square_data).reshape(grid_shape)
         fixed_params_dict = {spec.name: spec.value for spec in
                              self.fixed_params}
@@ -110,7 +74,19 @@ class GridExecutor(GridExecutorBase):
                     chi_square_data=chi_square_array)
 
     def __iter__(self):
-        raise NotImplementedError
+        """Iterate over the grid."""
+        grid_func = self.grid_func
+        param_partitions = self.param_partitions
+        grid_shape = tuple(
+            partition.data.size for partition in param_partitions)
+        grid_size = int(np.prod(grid_shape))
+        num_processes = os.cpu_count()
+        # NOTE: there is no a special reason to use this chunk size.
+        chunk_size = max(grid_size // num_processes, 16)
+        with Pool() as pool_exec:
+            results_imap = pool_exec.imap(grid_func, self.params_iter,
+                                          chunksize=chunk_size)
+            yield from results_imap
 
 
 @dataclass

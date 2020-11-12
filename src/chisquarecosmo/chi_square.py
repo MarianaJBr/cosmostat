@@ -388,7 +388,8 @@ def has_grid(group: h5py.Group):
     return GRID_GROUP_LABEL in group
 
 
-T_GridFunc = t.Callable[[t.Tuple[int, ...]], float]
+T_GridFunc = t.Callable[[Params], float]
+T_GridExecutorCallback = t.Callable[[Params], float]
 
 
 @dataclass
@@ -396,19 +397,17 @@ class GridExecutor(Iterable):
     """Executes a grid."""
 
     eos_model: Model
-
     datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
     param_partitions: T_ParamPartitionSpecs
+
+    # Private attributes.
     param_partition_names: t.List[str] = field(init=False,
                                                default=None,
                                                repr=False)
-
-    # Private attributes.
     likelihoods: t.List[Likelihood] = field(init=False,
                                             default=None,
                                             repr=False)
-
     grid_func: T_GridFunc = field(init=False,
                                   default=None,
                                   repr=False)
@@ -430,32 +429,38 @@ class GridExecutor(Iterable):
 
     def _make_grid_func(self):
         """Make the function to evaluate on the grid."""
-        eos_model = self.eos_model
         likelihoods = self.likelihoods
-        fixed_params = self.fixed_params
-        free_names = self.param_partition_names
-        param_partition = self.param_partitions
-        params_cls = eos_model.params_cls
         chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
-        fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
 
-        def grid_func(value_indexes: t.Tuple[int, ...]):
-            """Grid function.
-
-            Evaluates the chi-square function.
-            """
-            grid_values = [param_partition[grid_idx].data[value_idx] for
-                           grid_idx, value_idx in enumerate(value_indexes)]
-            params_dict = dict(zip(free_names, grid_values))
-            params_dict.update(fixed_params_dict)
-            params_obj = params_cls(**params_dict)
-            return sum(func(params_obj) for func in chi_square_funcs)
+        def grid_func(params: Params):
+            """Evaluate the chi-square function."""
+            return sum(func(params) for func in chi_square_funcs)
 
         return grid_func
 
+    @property
+    def params_iter(self):
+        """"""
+        eos_model = self.eos_model
+        params_cls = eos_model.params_cls
+        fixed_params = self.fixed_params
+        free_names = self.param_partition_names
+        param_partitions = self.param_partitions
+        fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
+        grid_shape = tuple(
+            partition.data.size for partition in param_partitions)
+        for ndindex in np.ndindex(*grid_shape):
+            grid_values = [param_partitions[grid_idx].data[value_idx] for
+                           grid_idx, value_idx in enumerate(ndindex)]
+            params_dict = dict(zip(free_names, grid_values))
+            params_dict.update(fixed_params_dict)
+            params_obj = params_cls(**params_dict)
+            yield params_obj
+
     def eval(self):
         """Evaluates the chi-square on the grid."""
-        grid_func = self._make_grid_func()
+        grid_func = self.grid_func
+        params_iter = self.params_iter
         param_partitions = self.param_partitions
         grid_shape = tuple(
             partition.data.size for partition in param_partitions)
@@ -463,9 +468,8 @@ class GridExecutor(Iterable):
         # Evaluate the grid using a multidimensional iterator. This
         # way we do not allocate memory for all the combinations of
         # parameter values that form the grid.
-        grid_indexes = np.ndindex(*grid_shape)
-        indexes_bag = bag.from_sequence(grid_indexes)
-        chi_square_data = indexes_bag.map(grid_func).compute()
+        params_bag = bag.from_sequence(params_iter)
+        chi_square_data = params_bag.map(grid_func).compute()
         chi_square_array: np.ndarray = np.asarray(chi_square_data).reshape(
             grid_shape)
         fixed_params_dict = {spec.name: spec.value for spec in
