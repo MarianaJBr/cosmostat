@@ -123,7 +123,7 @@ def grid_func_base(value_indexes: t.Tuple[int, ...],
 
 @dataclass
 class GridExecutor(GridExecutorBase):
-    """"""
+    """Executes a grid."""
 
     def __post_init__(self):
         """Post-initialization.
@@ -192,3 +192,6 @@ class GridExecutor(GridExecutorBase):
                     fixed_params=fixed_params_dict,
                     partition_arrays=partition_arrays,
                     chi_square_data=chi_square_array)
+
+    def __iter__(self):
+        raise NotImplementedError

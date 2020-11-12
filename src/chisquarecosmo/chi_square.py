@@ -1,4 +1,5 @@
 import typing as t
+from collections import Iterable
 from dataclasses import astuple, dataclass, field
 
 import h5py
@@ -461,21 +462,30 @@ def has_grid(group: h5py.Group):
     return GRID_GROUP_LABEL in group
 
 
+T_GridFunc = t.Callable[[t.Tuple[int, ...]], float]
+
+
 @dataclass
-class GridExecutor:
+class GridExecutor(Iterable):
     """Executes a grid."""
+
     eos_model: Model
+
     datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
     param_partitions: T_ParamPartitionSpecs
-
-    # Private attributes.
     param_partition_names: t.List[str] = field(init=False,
                                                default=None,
                                                repr=False)
+
+    # Private attributes.
     likelihoods: t.List[Likelihood] = field(init=False,
                                             default=None,
                                             repr=False)
+
+    grid_func: T_GridFunc = field(init=False,
+                                  default=None,
+                                  repr=False)
 
     def __post_init__(self):
         """Post-initialization.
@@ -490,6 +500,7 @@ class GridExecutor:
         # Set private attributes.
         self.param_partition_names = param_partition_names
         self.likelihoods = likelihoods
+        self.grid_func = self._make_grid_func()
 
     def _make_grid_func(self):
         """Make the function to evaluate on the grid."""
@@ -543,6 +554,9 @@ class GridExecutor:
                     fixed_params=fixed_params_dict,
                     partition_arrays=partition_arrays,
                     chi_square_data=chi_square_array)
+
+    def __iter__(self):
+        raise NotImplementedError
 
 
 @dataclass
