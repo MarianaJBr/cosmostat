@@ -49,7 +49,6 @@ def chi_square_base(params: Params,
 
 @dataclass
 class Likelihood:
-    """"""
     """Group likelihood functions for a specific model and dataset."""
     model: Model
     dataset: Dataset

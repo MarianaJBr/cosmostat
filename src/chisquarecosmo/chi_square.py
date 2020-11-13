@@ -1,5 +1,5 @@
 import typing as t
-from collections import Iterable
+from abc import ABCMeta, abstractmethod
 from dataclasses import astuple, dataclass, field
 
 import h5py
@@ -393,63 +393,36 @@ T_GridExecutorCallback = t.Callable[[Params], float]
 
 
 @dataclass
-class GridExecutor(Iterable):
-    """Executes a grid."""
-
+class GridIterator(t.Iterable):
+    """Iterates over a grid."""
     eos_model: Model
     datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
     param_partitions: T_ParamPartitionSpecs
 
-    # Private attributes.
-    param_partition_names: t.List[str] = field(init=False,
-                                               default=None,
-                                               repr=False)
-    likelihoods: t.List[Likelihood] = field(init=False,
-                                            default=None,
-                                            repr=False)
-    grid_func: T_GridFunc = field(init=False,
-                                  default=None,
-                                  repr=False)
-
-    def __post_init__(self):
-        """Post-initialization.
-
-        Set private attributes and other related initialization tasks.
-        """
-        model = self.eos_model
-        datasets = self.datasets
+    @property
+    def shape(self):
+        """The grid shape."""
         param_partitions = self.param_partitions
-        param_partition_names = [spec.name for spec in param_partitions]
-        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
-        # Set private attributes.
-        self.param_partition_names = param_partition_names
-        self.likelihoods = likelihoods
-        self.grid_func = self._make_grid_func()
-
-    def _make_grid_func(self):
-        """Make the function to evaluate on the grid."""
-        likelihoods = self.likelihoods
-        chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
-
-        def grid_func(params: Params):
-            """Evaluate the chi-square function."""
-            return sum(func(params) for func in chi_square_funcs)
-
-        return grid_func
+        return tuple(partition.data.size for partition in param_partitions)
 
     @property
-    def params_iter(self):
+    def size(self):
+        """The grid total size."""
+        return int(np.prod(self.shape))
+
+    def __iter__(self):
         """"""
         eos_model = self.eos_model
         params_cls = eos_model.params_cls
         fixed_params = self.fixed_params
-        free_names = self.param_partition_names
+        free_names = [spec.name for spec in self.param_partitions]
         param_partitions = self.param_partitions
         fixed_params_dict = {spec.name: spec.value for spec in fixed_params}
-        grid_shape = tuple(
-            partition.data.size for partition in param_partitions)
-        for ndindex in np.ndindex(*grid_shape):
+        # Iterate over the grid using a multidimensional iterator. This
+        # way we do not allocate memory for all the combinations of
+        # parameter values that form the grid.
+        for ndindex in np.ndindex(*self.shape):
             grid_values = [param_partitions[grid_idx].data[value_idx] for
                            grid_idx, value_idx in enumerate(ndindex)]
             params_dict = dict(zip(free_names, grid_values))
@@ -457,36 +430,55 @@ class GridExecutor(Iterable):
             params_obj = params_cls(**params_dict)
             yield params_obj
 
-    def eval(self):
+
+@dataclass
+class GridExecutor(metaclass=ABCMeta):
+    """Executes a grid."""
+    callback: T_GridExecutorCallback = None
+
+    @staticmethod
+    def _make_chi_square_funcs(model: Model,
+                               datasets: DatasetJoin):
+        """"""
+        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
+        return [lk.chi_square for lk in likelihoods]
+
+    def _make_grid_func(self, model: Model,
+                        datasets: DatasetJoin):
+        """Make the function to evaluate on the grid."""
+        chi_square_funcs = self._make_chi_square_funcs(model, datasets)
+        callback_func = self.callback
+
+        def grid_func(params: Params):
+            """Evaluate the chi-square function."""
+            chi_square = sum(func(params) for func in chi_square_funcs)
+            if callback_func is not None:
+                callback_func(params)
+            return chi_square
+
+        return grid_func
+
+    @abstractmethod
+    def map(self, iterator: GridIterator):
         """Evaluates the chi-square on the grid."""
-        grid_func = self.grid_func
-        params_iter = self.params_iter
-        param_partitions = self.param_partitions
-        grid_shape = tuple(
-            partition.data.size for partition in param_partitions)
+        pass
+
+
+@dataclass
+class DaskGridExecutor(GridExecutor):
+    """Executes a grid using Dask."""
+
+    def map(self, iterator: GridIterator):
+        """Evaluates the chi-square on the grid."""
+        grid_func = self._make_grid_func(iterator.eos_model,
+                                         iterator.datasets)
 
         # Evaluate the grid using a multidimensional iterator. This
         # way we do not allocate memory for all the combinations of
         # parameter values that form the grid.
-        params_bag = bag.from_sequence(params_iter)
+        params_bag = bag.from_sequence(iterator)
         chi_square_data = params_bag.map(grid_func).compute()
-        chi_square_array: np.ndarray = np.asarray(chi_square_data).reshape(
-            grid_shape)
-        fixed_params_dict = {spec.name: spec.value for spec in
-                             self.fixed_params}
-        # The parameter order used to evaluate the grid is defined by the
-        # param_partition list order. Converting to a dictionary as follows
-        # preserves this order since, in Python>=3.7, dictionaries keep their
-        # items sorted according to their insertion order.
-        partition_arrays = dict(map(astuple, param_partitions))
-        return Grid(eos_model=self.eos_model,
-                    datasets=self.datasets,
-                    fixed_params=fixed_params_dict,
-                    partition_arrays=partition_arrays,
-                    chi_square_data=chi_square_array)
-
-    def __iter__(self):
-        raise NotImplementedError
+        return chi_square_data
 
 
 @dataclass
@@ -497,6 +489,25 @@ class Grid:
     fixed_params: t.Dict[str, float]
     partition_arrays: t.Dict[str, np.ndarray]
     chi_square_data: np.ndarray
+
+    @classmethod
+    def from_data(cls, data: t.Iterable[float],
+                  iterator: GridIterator):
+        """Evaluates the chi-square on the grid."""
+        grid_shape = iterator.shape
+        chi_square_array: np.ndarray = np.asarray(data).reshape(grid_shape)
+        fixed_params_dict = {spec.name: spec.value for spec in
+                             iterator.fixed_params}
+        # The parameter order used to evaluate the grid is defined by the
+        # param_partition list order. Converting to a dictionary as follows
+        # preserves this order since, in Python>=3.7, dictionaries keep their
+        # items sorted according to their insertion order.
+        partition_arrays = dict(map(astuple, iterator.param_partitions))
+        return cls(eos_model=iterator.eos_model,
+                   datasets=iterator.datasets,
+                   fixed_params=fixed_params_dict,
+                   partition_arrays=partition_arrays,
+                   chi_square_data=chi_square_array)
 
     def save(self, file: h5py.File,
              group_name: str = None,

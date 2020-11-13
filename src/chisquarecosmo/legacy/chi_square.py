@@ -1,15 +1,16 @@
 import os
 import typing as t
-from dataclasses import astuple, dataclass
+from dataclasses import dataclass
 from functools import partial
 from multiprocessing import Pool
 
 import h5py
 import numpy as np
-from chisquarecosmo import DatasetJoin, Params, get_model
+from chisquarecosmo import DatasetJoin, Model, Params, get_model
 from chisquarecosmo.chi_square import (
     Grid as BaseGrid, GridExecutor as GridExecutorBase,
-    PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME, fixed_specs_as_array,
+    GridIterator, PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME,
+    T_GridExecutorCallback, fixed_specs_as_array,
     fixed_specs_from_array
 )
 
@@ -20,73 +21,55 @@ CHI_SQUARE_DATASET_LABEL = "Chi2"
 
 
 def grid_func_base(params: Params,
+                   callback_func: T_GridExecutorCallback,
                    chi_square_funcs: t.List[t.Callable[[Params], float]]):
     """Grid function.
 
     Evaluates the chi-square function.
     """
-    return sum(func(params) for func in chi_square_funcs)
+    chi_square = sum(func(params) for func in chi_square_funcs)
+    if callback_func is not None:
+        callback_func(params)
+    return chi_square
 
 
 @dataclass
-class GridExecutor(GridExecutorBase):
+class PoolGridExecutor(GridExecutorBase):
     """Executes a grid."""
 
-    def __post_init__(self):
-        """Post-initialization.
-
-        Set private attributes and other related initialization tasks.
-        """
-        model = self.eos_model
-        datasets = self.datasets
-        param_partitions = self.param_partitions
-        param_partition_names = [spec.name for spec in param_partitions]
+    @staticmethod
+    def _make_chi_square_funcs(model: Model,
+                               datasets: DatasetJoin):
+        """"""
         likelihoods = [Likelihood(model, dataset) for dataset in datasets]
-        # Set private attributes.
-        self.param_partition_names = param_partition_names
-        self.likelihoods = likelihoods
-        self.grid_func = self._make_grid_func()
+        return [lk.chi_square for lk in likelihoods]
 
-    def _make_grid_func(self):
+    def _make_grid_func(self, model: Model,
+                        datasets: DatasetJoin):
         """Make the function to evaluate on the grid."""
-        likelihoods = self.likelihoods
-        chi_square_funcs = [lkh.chi_square for lkh in likelihoods]
-        return partial(grid_func_base, chi_square_funcs=chi_square_funcs)
+        chi_square_funcs = self._make_chi_square_funcs(model, datasets)
+        callback_func = self.callback
+        return partial(grid_func_base,
+                       callback_func=callback_func,
+                       chi_square_funcs=chi_square_funcs)
 
-    def eval(self):
+    def map(self, iterator: GridIterator):
         """Evaluates the chi-square on the grid."""
-        param_partitions = self.param_partitions
-        grid_shape = tuple(
-            partition.data.size for partition in param_partitions)
-        chi_square_data = list(self)
-        chi_square_array = np.asarray(chi_square_data).reshape(grid_shape)
-        fixed_params_dict = {spec.name: spec.value for spec in
-                             self.fixed_params}
-        # The parameter order used to evaluate the grid is defined by the
-        # param_partition list order. Converting to a dictionary as follows
-        # preserves this order since, in Python>=3.7, dictionaries keep their
-        # items sorted according to their insertion order.
-        partition_arrays = dict(map(astuple, param_partitions))
-        return Grid(eos_model=self.eos_model,
-                    datasets=self.datasets,
-                    fixed_params=fixed_params_dict,
-                    partition_arrays=partition_arrays,
-                    chi_square_data=chi_square_array)
-
-    def __iter__(self):
-        """Iterate over the grid."""
-        grid_func = self.grid_func
-        param_partitions = self.param_partitions
-        grid_shape = tuple(
-            partition.data.size for partition in param_partitions)
-        grid_size = int(np.prod(grid_shape))
-        num_processes = os.cpu_count()
-        # NOTE: there is no a special reason to use this chunk size.
-        chunk_size = max(grid_size // num_processes, 16)
-        with Pool() as pool_exec:
-            results_imap = pool_exec.imap(grid_func, self.params_iter,
-                                          chunksize=chunk_size)
-            yield from results_imap
+        grid_size = iterator.size
+        grid_func = self._make_grid_func(iterator.eos_model,
+                                         iterator.datasets)
+        # NOTE: there is no a special reason to use the given
+        #  max tasks per child and chunk size values. However,
+        #  we set maxtasksperchild=2 to avoid python using a
+        #  lot of memory.
+        # TODO: Choose a better value for chunksize and maxtasksperchild
+        #  arguments.
+        cpu_count = os.cpu_count()
+        chunk_size = min(grid_size // cpu_count, 64)
+        with Pool(maxtasksperchild=2) as pool_exec:
+            pool_imap = pool_exec.imap(grid_func, iterator,
+                                       chunksize=chunk_size)
+            yield from pool_imap
 
 
 @dataclass
