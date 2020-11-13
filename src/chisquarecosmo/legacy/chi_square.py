@@ -81,12 +81,19 @@ class Grid(BaseGrid):
              force: bool = False):
         """Save a grid result to an HDF5 file."""
         group = file[ROOT_GROUP_NAME]
+        if PARAM_PARTITIONS_GROUP_LABEL in group and force:
+            del group[PARAM_PARTITIONS_GROUP_LABEL]
+        if PARTITION_GRID_DATASET_LABEL in group and force:
+            del group[PARTITION_GRID_DATASET_LABEL]
+        if CHI_SQUARE_DATASET_LABEL in group and force:
+            del group[CHI_SQUARE_DATASET_LABEL]
 
         # Save the attributes that define the result.
+        fixed_params = self.fixed_params
         group.attrs["eos_model"] = self.eos_model.name
         group.attrs["datasets"] = self.datasets.name
         group.attrs["datasets_label"] = self.datasets.label
-        group.attrs["fixed_params"] = fixed_specs_as_array(self.fixed_params)
+        group.attrs["fixed_params"] = fixed_specs_as_array(fixed_params)
 
         # Create a group to save the grid partition arrays.
         arrays_group = group.create_group(PARAM_PARTITIONS_GROUP_LABEL)
@@ -94,9 +101,11 @@ class Grid(BaseGrid):
             arrays_group.create_dataset(name, data=data)
 
         # Save the chi-square grid data.
+        params_names = getattr(self.eos_model.params_cls, "_fields")
         partition_names = self.partition_arrays.keys()
         grid_arrays = self.partition_arrays.values()
         grid_shape = tuple(data.size for data in grid_arrays)
+        grid_shape += (len(params_names),)
         grid_matrices = np.meshgrid(*grid_arrays,
                                     indexing="ij",
                                     sparse=True)
@@ -104,13 +113,12 @@ class Grid(BaseGrid):
         grid_dataset = group.create_dataset(PARTITION_GRID_DATASET_LABEL,
                                             shape=grid_shape,
                                             dtype="f8")
-        params_names = getattr(self.eos_model.params_cls, "_fields")
-        for idx, name in params_names:
+        for idx, name in enumerate(params_names):
             # Save the parameter values in the dataset.
-            if name in partition_matrices:
-                grid_dataset[idx] = partition_matrices[name]
+            if name in partition_names:
+                grid_dataset[..., idx] = partition_matrices[name]
             else:
-                grid_dataset[idx] = self.fixed_params[name]
+                grid_dataset[..., idx] = fixed_params[name]
 
         # Save the chi-square grid data.
         group.create_dataset(CHI_SQUARE_DATASET_LABEL,
