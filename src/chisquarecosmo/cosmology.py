@@ -235,7 +235,10 @@ class Functions(metaclass=ABCMeta):
 
         def r_bao(z: float, params: Params):
             """BAO scale at redshift z."""
-            return r_s(ZDRAG, params) / d_vz(z, params)
+            rv = r_s(ZDRAG, params) / d_vz(z, params)
+            if isinstance(rv, complex):
+                raise ValueError
+            return rv
 
         return r_bao
 
