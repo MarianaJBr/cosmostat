@@ -17,7 +17,7 @@ It is based on Planck 2015 Cosmological Parameters report
 import typing as t
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from math import sqrt
+from math import log10, sqrt
 
 import numpy as np
 from scipy import integrate
@@ -308,7 +308,7 @@ class Functions(metaclass=ABCMeta):
             """
             mu0 = 25
             d = distance_sne(z, params)
-            return 5 * np.log10(d) + mu0
+            return 5 * log10(d) + mu0
 
         return mu_sne
 
@@ -333,7 +333,7 @@ class Functions(metaclass=ABCMeta):
             omegach2 = params.omegach2
             omega_m = (omegabh2 + omegach2) / h ** 2
             # Important to keep H0p factor for units
-            factor1 = np.sqrt(omega_m) * h * H0P
+            factor1 = sqrt(omega_m) * h * H0P
             d_ang_z_star = d_ang(ZDEC, params) * (1 + ZDEC)
             return factor1 * d_ang_z_star
 
