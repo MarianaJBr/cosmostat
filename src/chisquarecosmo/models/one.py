@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass
 from functools import lru_cache
 from math import exp
 
-import numpy as np
 from chisquarecosmo.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
 from chisquarecosmo.cosmology import (
     Functions as BaseFunctions, Model, Params as ParamsBase,
@@ -68,10 +67,10 @@ def wz(z: float, params: Params):
         return -1
     if w1 == 0:
         # return -1 - w0 * np.exp(-z) * (1 - z - w2)
-        return -1 + np.exp(-z) * (w0 * z + w2)
+        return -1 + exp(-z) * (w0 * z + w2)
     if w2 == 0:
-        return -1 - w0 * np.exp(-z) * (z ** w1 - z)
-    return -1 - w0 * np.exp(-z) * (z ** w1 - z - w2)
+        return -1 - w0 * exp(-z) * (z ** w1 - z)
+    return -1 - w0 * exp(-z) * (z ** w1 - z - w2)
 
 
 @jit(nopython=True, cache=True)
@@ -132,7 +131,7 @@ def f_dez_fast(z: float, params: Params) -> float:
                                    #  This is necessary when the integrand
                                    #  is a numba function.
                                    args=params)
-    return np.exp(3 * int_de)
+    return exp(3 * int_de)
 
 
 def f_dez(z: float, params: Params):
