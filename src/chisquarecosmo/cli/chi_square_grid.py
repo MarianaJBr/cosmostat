@@ -353,6 +353,5 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     with h5py.File(out_file, file_mode) as h5f:
         grid_result.save(h5f, base_group_name, force_output)
 
-    console.print(Padding(f"[underline bold green]Optimization process "
-                          f"successfully finished[/]",
+    console.print(Padding(f"[underline bold green]Grid evaluation complete[/]",
                           pad=(1, 0)), justify="center")
