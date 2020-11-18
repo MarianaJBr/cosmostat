@@ -9,7 +9,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import OptimizeResult, differential_evolution, newton
 
 from .cosmology import (
-    Dataset, DatasetJoin, Model, Params, get_model
+    DatasetJoin, Model, Params, get_model
 )
 from .likelihood import Likelihood, T_LikelihoodFunc
 
@@ -303,84 +303,158 @@ def has_best_fit(group: h5py.Group):
     return BEST_FIT_GROUP_LABEL in group
 
 
+T_BestFitFinderCallback = t.Callable[[Params, float], float]
+
+
 @dataclass
-class Minimizer:
-    """"""
+class BestFitFinder:
+    """Find the best chi-square fitting params of a model to certain data."""
     eos_model: Model
     datasets: DatasetJoin
     fixed_specs: T_FixedParamSpecs
     free_specs: t.List[FreeParamSpec]
+    callback: t.Callable = T_BestFitFinderCallback
 
-    def _make_callback(self):
+    chi_square: T_LikelihoodFunc = field(default=None,
+                                         init=False,
+                                         repr=False)
+
+    def __post_init__(self):
         """"""
+        self.chi_square = self._make_chi_square_func()
 
+    def _make_chi_square_func(self):
+        """Get the chi-square function."""
+        chi_square_funcs = self.chi_square_funcs
 
-def find_best_fit(eos_model: Model,
-                  datasets: DatasetJoin,
-                  fixed_specs: t.List[FixedParamSpec],
-                  free_specs: t.List[FreeParamSpec],
-                  callback: t.Callable = None):
-    """Execute the optimization procedure and return the best-fit result."""
+        def chi_square(params: Params):
+            """Chi-square function."""
+            try:
+                return sum((func(params) for func in chi_square_funcs))
+            except ValueError:
+                return np.inf
+            # return sum((func(params) for func in chi_square_funcs))
 
-    def _chi_square_func(_dataset: Dataset):
-        """Return the chi-square function for a given dataset."""
-        return Likelihood(eos_model, _dataset).chi_square
+        return chi_square
 
-    params_cls = eos_model.params_cls
-    chi_square_funcs = [_chi_square_func(dataset) for dataset in datasets]
-    free_spec_names = [spec.name for spec in free_specs]
-    free_spec_bounds = [_bounds(spec) for spec in free_specs]
-    fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-    obj_func = make_objective_func(chi_square_funcs, params_cls, fixed_specs,
-                                   free_specs)
-    # Start the optimization procedure.
-    optimize_result = differential_evolution(obj_func,
-                                             bounds=free_spec_bounds,
-                                             callback=callback,
-                                             polish=True)
-    # Extract the best-fit parameters from the result.
-    optimize_best_fit_params_dict = \
-        dict(zip(free_spec_names, optimize_result["x"]))
-    fixed_specs_dict.update(optimize_best_fit_params_dict)
-    best_fit_params = params_cls(**fixed_specs_dict)
-    return make_best_fit_result(eos_model,
-                                datasets,
-                                best_fit_params,
-                                free_specs,
-                                optimize_result)
+    @property
+    def chi_square_funcs(self):
+        """Get the chi-square functions."""
+        model = self.eos_model
+        datasets = self.datasets
+        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
+        return [lk.chi_square for lk in likelihoods]
 
+    def _make_objective_func(self, model: Model,
+                             fixed_specs: T_FixedParamSpecs,
+                             free_specs: t.List[FreeParamSpec]):
+        """Make the function to evaluate on the grid."""
+        params_cls = model.params_cls
+        chi_square_func = self.chi_square
+        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        var_names = [spec.name for spec in free_specs]
 
-def make_best_fit_result(eos_model: Model,
-                         datasets: DatasetJoin,
-                         best_fit_params: Params,
-                         free_specs: t.List[FreeParamSpec],
-                         optimization_info: T_OptimizationInfo):
-    """Create a proper BestFitResult instance from data."""
-    # EOS today.
-    eos_today = eos_model.functions.wz(0, best_fit_params)
-    # Minimum of chi-square.
-    chi_square_min = optimization_info["fun"]
-    num_data = datasets.length
-    # Reduced chi-square.
-    num_free_params = len(free_specs)
-    chi_square_reduced = chi_square_min / (num_data - num_free_params)
-    h = best_fit_params.h
-    omegabh2 = best_fit_params.omegabh2
-    omegach2 = best_fit_params.omegach2
-    omega_m = (omegabh2 + omegach2) / h ** 2
-    bic = chi_square_min + num_free_params * np.log(num_data)
-    aic = chi_square_min + 2 * num_data
-    best_fit_result = BestFit(eos_model=eos_model,
-                              datasets=datasets,
-                              params=best_fit_params,
-                              free_params=free_specs,
-                              eos_today=eos_today,
-                              chi_square_min=chi_square_min,
-                              chi_square_reduced=chi_square_reduced,
-                              omega_m=omega_m,
-                              aic=aic, bic=bic,
-                              optimization_info=optimization_info)
-    return best_fit_result
+        def objective_func(x: t.Tuple[float, ...]):
+            """Objective function.
+
+            Evaluates the chi-square function.
+            """
+            params_dict = dict(zip(var_names, x))
+            params_dict.update(fixed_specs_dict)
+            params = params_cls(**params_dict)
+            return chi_square_func(params)
+
+        return objective_func
+
+    def _make_callback(self, model: Model,
+                       fixed_specs: T_FixedParamSpecs,
+                       free_specs: t.List[FreeParamSpec],
+                       callback_func: T_BestFitFinderCallback):
+        """"""
+        params_cls = model.params_cls
+        chi_square_func = self.chi_square
+        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        var_names = [spec.name for spec in free_specs]
+
+        def callback(x: t.Tuple[float, ...],
+                     convergence: float = None):
+            """"""
+            params_dict = dict(zip(var_names, x))
+            params_dict.update(fixed_specs_dict)
+            params = params_cls(**params_dict)
+            chi_square = chi_square_func(params)
+            return callback_func(params, chi_square)
+
+        if callback_func is not None:
+            return callback
+
+    def _exec(self, model: Model,
+              fixed_specs: T_FixedParamSpecs,
+              free_specs: t.List[FreeParamSpec],
+              callback_func: T_BestFitFinderCallback):
+        """Optimization routine."""
+        free_spec_bounds = [_bounds(spec) for spec in free_specs]
+        obj_func = self._make_objective_func(model,
+                                             fixed_specs,
+                                             free_specs)
+        _callback = self._make_callback(model,
+                                        fixed_specs,
+                                        free_specs,
+                                        callback_func)
+
+        # Start the optimization procedure.
+        return differential_evolution(obj_func,
+                                      bounds=free_spec_bounds,
+                                      callback=_callback,
+                                      polish=True)
+
+    def exec(self):
+        """Start the optimization procedure."""
+        optimize_result = self._exec(self.eos_model,
+                                     self.fixed_specs,
+                                     self.free_specs,
+                                     self.callback)
+        return self._make_result(optimize_result)
+
+    def _make_result(self, optimization_info: T_OptimizationInfo):
+        """Create a proper BestFitResult instance from data."""
+        free_specs = self.free_specs
+        free_spec_names = [spec.name for spec in free_specs]
+        # Extract the best-fit parameters from the result.
+        fixed_specs_dict = {spec.name: spec.value for spec in self.fixed_specs}
+        optimize_best_fit_params_dict = \
+            dict(zip(free_spec_names, optimization_info["x"]))
+        fixed_specs_dict.update(optimize_best_fit_params_dict)
+        params = self.eos_model.params_cls(**fixed_specs_dict)
+
+        # EOS today.
+        eos_model = self.eos_model
+        datasets = self.datasets
+        free_specs = self.free_specs
+        eos_today = eos_model.functions.wz(0, params)
+        # Minimum of chi-square.
+        chi_square_min = optimization_info["fun"]
+        num_data = datasets.length
+        # Reduced chi-square.
+        num_free_params = len(free_specs)
+        chi_square_reduced = chi_square_min / (num_data - num_free_params)
+        h = params.h
+        omegabh2 = params.omegabh2
+        omegach2 = params.omegach2
+        omega_m = (omegabh2 + omegach2) / h ** 2
+        bic = chi_square_min + num_free_params * np.log(num_data)
+        aic = chi_square_min + 2 * num_data
+        result = BestFit(eos_model=eos_model,
+                         datasets=datasets,
+                         params=params,
+                         free_params=free_specs,
+                         eos_today=eos_today,
+                         chi_square_min=chi_square_min,
+                         chi_square_reduced=chi_square_reduced,
+                         omega_m=omega_m,
+                         aic=aic, bic=bic,
+                         optimization_info=optimization_info)
+        return result
 
 
 def has_grid(group: h5py.Group):

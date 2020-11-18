@@ -5,10 +5,10 @@ import click
 import h5py
 import numpy as np
 from chisquarecosmo.chi_square import (
-    FixedParamSpec, FreeParamSpec, find_best_fit, has_best_fit
+    BestFitFinder, FixedParamSpec, FreeParamSpec, has_best_fit
 )
 from chisquarecosmo.cosmology import (
-    get_dataset_join, get_model, registered_dataset_joins,
+    Params, get_dataset_join, get_model, registered_dataset_joins,
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
@@ -17,6 +17,7 @@ from click import BadParameter
 from rich import box
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.pretty import Pretty
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
@@ -259,23 +260,28 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     )
     progress = Progress(*columns, console=console, auto_refresh=True)
 
-    def optimization_callback(x: t.Tuple[float, ...],
-                              convergence: float = None):
+    def optimization_callback(params: Params,
+                              chi_square: float):
         """Show a progress message for each iteration."""
-        params_dict = dict(zip(free_spec_names, x))
-        params_dict.update(fixed_specs_dict)
-        params_obj = params_cls(**params_dict)
-        text = console.highlighter(str(dict(params_obj._asdict())))
-        progress.console.log(Padding(text, (0, 0, 1, 0)), justify="center")
+        data_obj = {
+            'params': dict(params._asdict()),
+            'chi_square': chi_square
+        }
+        params_text = Pretty(data_obj,
+                             highlighter=console.highlighter,
+                             justify="left")
+        progress.console.log(Padding(params_text, (0, 0, 1, 0)),
+                             justify="center")
 
     with progress:
         task1 = progress.add_task("[red]Progress", start=False)
         progress.update(task1, total=10)
-        best_fit_result = find_best_fit(_eos_model,
+        best_fit_finder = BestFitFinder(_eos_model,
                                         datasets,
                                         fixed_specs,
                                         free_specs,
                                         callback=optimization_callback)
+        best_fit_result = best_fit_finder.exec()
 
     with h5py.File(out_file, file_mode) as h5f:
         best_fit_result.save(h5f, base_group_name, force_output)
