@@ -315,13 +315,81 @@ class BestFitFinder:
     free_specs: t.List[FreeParamSpec]
     callback: t.Callable = T_BestFitFinderCallback
 
+    # Private attributes.
     chi_square: T_LikelihoodFunc = field(default=None,
                                          init=False,
                                          repr=False)
+    objective_func: T_LikelihoodFunc = field(default=None,
+                                             init=False,
+                                             repr=False)
+    callback_func: T_BestFitFinderCallback = field(default=None,
+                                                   init=False,
+                                                   repr=False)
 
     def __post_init__(self):
         """"""
         self.chi_square = self._make_chi_square_func()
+        self.objective_func = self._make_objective_func()
+        self.callback_func = self._make_callback_func()
+
+    @property
+    def free_specs_bounds(self):
+        return [_bounds(spec) for spec in self.free_specs]
+
+    @property
+    def chi_square_funcs(self):
+        """Get the chi-square functions."""
+        model = self.eos_model
+        datasets = self.datasets
+        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
+        return [lk.chi_square for lk in likelihoods]
+
+    def _make_objective_func(self):
+        """The objective function."""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        var_names = [spec.name for spec in free_specs]
+        chi_square_func = self.chi_square
+
+        def objective_func(x: t.Tuple[float, ...]):
+            """Objective function.
+
+            Evaluates the chi-square function.
+            """
+            params_dict = dict(zip(var_names, x))
+            params_dict.update(fixed_specs_dict)
+            params = params_cls(**params_dict)
+            return chi_square_func(params)
+
+        return objective_func
+
+    def _make_callback_func(self):
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        var_names = [spec.name for spec in free_specs]
+        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+        var_names = [spec.name for spec in free_specs]
+        chi_square_func = self.chi_square
+        _callback_func = self.callback
+
+        if _callback_func is None:
+            return None
+
+        def callback_func(x: t.Tuple[float, ...],
+                          convergence: float = None):
+            """"""
+            params_dict = dict(zip(var_names, x))
+            params_dict.update(fixed_specs_dict)
+            params = params_cls(**params_dict)
+            chi_square = chi_square_func(params)
+            return _callback_func(params, chi_square)
+
+        return callback_func
 
     def _make_chi_square_func(self):
         """Get the chi-square function."""
@@ -337,83 +405,17 @@ class BestFitFinder:
 
         return chi_square
 
-    @property
-    def chi_square_funcs(self):
-        """Get the chi-square functions."""
-        model = self.eos_model
-        datasets = self.datasets
-        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
-        return [lk.chi_square for lk in likelihoods]
-
-    def _make_objective_func(self, model: Model,
-                             fixed_specs: T_FixedParamSpecs,
-                             free_specs: t.List[FreeParamSpec]):
-        """Make the function to evaluate on the grid."""
-        params_cls = model.params_cls
-        chi_square_func = self.chi_square
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-        var_names = [spec.name for spec in free_specs]
-
-        def objective_func(x: t.Tuple[float, ...]):
-            """Objective function.
-
-            Evaluates the chi-square function.
-            """
-            params_dict = dict(zip(var_names, x))
-            params_dict.update(fixed_specs_dict)
-            params = params_cls(**params_dict)
-            return chi_square_func(params)
-
-        return objective_func
-
-    def _make_callback(self, model: Model,
-                       fixed_specs: T_FixedParamSpecs,
-                       free_specs: t.List[FreeParamSpec],
-                       callback_func: T_BestFitFinderCallback):
-        """"""
-        params_cls = model.params_cls
-        chi_square_func = self.chi_square
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-        var_names = [spec.name for spec in free_specs]
-
-        def callback(x: t.Tuple[float, ...],
-                     convergence: float = None):
-            """"""
-            params_dict = dict(zip(var_names, x))
-            params_dict.update(fixed_specs_dict)
-            params = params_cls(**params_dict)
-            chi_square = chi_square_func(params)
-            return callback_func(params, chi_square)
-
-        if callback_func is not None:
-            return callback
-
-    def _exec(self, model: Model,
-              fixed_specs: T_FixedParamSpecs,
-              free_specs: t.List[FreeParamSpec],
-              callback_func: T_BestFitFinderCallback):
+    def _exec(self):
         """Optimization routine."""
-        free_spec_bounds = [_bounds(spec) for spec in free_specs]
-        obj_func = self._make_objective_func(model,
-                                             fixed_specs,
-                                             free_specs)
-        _callback = self._make_callback(model,
-                                        fixed_specs,
-                                        free_specs,
-                                        callback_func)
-
         # Start the optimization procedure.
-        return differential_evolution(obj_func,
-                                      bounds=free_spec_bounds,
-                                      callback=_callback,
+        return differential_evolution(self.objective_func,
+                                      bounds=self.free_specs_bounds,
+                                      callback=self.callback_func,
                                       polish=True)
 
     def exec(self):
         """Start the optimization procedure."""
-        optimize_result = self._exec(self.eos_model,
-                                     self.fixed_specs,
-                                     self.free_specs,
-                                     self.callback)
+        optimize_result = self._exec()
         return self._make_result(optimize_result)
 
     def _make_result(self, optimization_info: T_OptimizationInfo):

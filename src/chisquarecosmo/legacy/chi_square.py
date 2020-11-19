@@ -8,16 +8,120 @@ import h5py
 import numpy as np
 from chisquarecosmo import DatasetJoin, Model, Params, get_model
 from chisquarecosmo.chi_square import (
-    Grid as BaseGrid, GridExecutor as GridExecutorBase,
-    GridIterator, PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME,
-    T_GridExecutorCallback, fixed_specs_as_array,
-    fixed_specs_from_array
+    BestFitFinder as BaseBestFitFinder, FreeParamSpec, Grid as BaseGrid,
+    GridExecutor as GridExecutorBase, GridIterator,
+    PARAM_PARTITIONS_GROUP_LABEL, ROOT_GROUP_NAME,
+    T_BestFitFinderCallback, T_FixedParamSpecs, T_GridExecutorCallback,
+    fixed_specs_as_array, fixed_specs_from_array
 )
+from chisquarecosmo.likelihood import T_LikelihoodFunc
+from scipy.optimize import differential_evolution
 
 from .likelihood import Likelihood
 
 PARTITION_GRID_DATASET_LABEL = "DataGrid"
 CHI_SQUARE_DATASET_LABEL = "Chi2"
+
+
+def chi_square_base(params: Params,
+                    chi_square_funcs: t.List[T_LikelihoodFunc]):
+    """Total chi-square function."""
+    try:
+        return sum((func(params) for func in chi_square_funcs))
+    except ValueError:
+        return np.inf
+
+
+def objective_func_base(x: t.Tuple[float, ...],
+                        params_cls: t.Type[Params],
+                        chi_square_func: T_LikelihoodFunc,
+                        fixed_specs: T_FixedParamSpecs,
+                        free_specs: t.List[FreeParamSpec]):
+    """Objective function.
+
+    Evaluates the chi-square function.
+    """
+    fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+    var_names = [spec.name for spec in free_specs]
+    params_dict = dict(zip(var_names, x))
+    params_dict.update(fixed_specs_dict)
+    params = params_cls(**params_dict)
+    return chi_square_func(params)
+
+
+def callback_base(x: t.Tuple[float, ...],
+                  convergence: float = None, *,
+                  params_cls: t.Type[Params],
+                  chi_square_func: T_LikelihoodFunc,
+                  fixed_specs: T_FixedParamSpecs,
+                  free_specs: t.List[FreeParamSpec],
+                  callback_func: T_BestFitFinderCallback):
+    """Callback for SciPy optimizer."""
+    fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+    var_names = [spec.name for spec in free_specs]
+
+    params_dict = dict(zip(var_names, x))
+    params_dict.update(fixed_specs_dict)
+    params = params_cls(**params_dict)
+    chi_square = chi_square_func(params)
+    return callback_func(params, chi_square)
+
+
+@dataclass
+class BestFitFinder(BaseBestFitFinder):
+    """Find the best chi-square fitting params of a model to certain data."""
+
+    @property
+    def chi_square_funcs(self):
+        """"""
+        model = self.eos_model
+        datasets = self.datasets
+        likelihoods = [Likelihood(model, dataset) for dataset in datasets]
+        return [lk.chi_square for lk in likelihoods]
+
+    def _make_chi_square_func(self):
+        """Get the chi-square function."""
+        return partial(chi_square_base,
+                       chi_square_funcs=self.chi_square_funcs)
+
+    def _make_objective_func(self):
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        chi_square_func = self.chi_square
+        return partial(objective_func_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs)
+
+    def _make_callback_func(self):
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        chi_square_func = self.chi_square
+        _callback_func = self.callback
+
+        if _callback_func is None:
+            return None
+
+        return partial(callback_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs,
+                       callback_func=_callback_func)
+
+    def _exec(self):
+        """Optimization routine."""
+        # Start the optimization procedure.
+        return differential_evolution(self.objective_func,
+                                      bounds=self.free_specs_bounds,
+                                      callback=self.callback_func,
+                                      workers=2,
+                                      polish=True)
 
 
 def grid_func_base(params: Params,
