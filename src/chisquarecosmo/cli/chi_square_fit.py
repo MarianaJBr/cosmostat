@@ -125,13 +125,15 @@ _datasets = registered_dataset_joins()
               default=False,
               help="If the output file already contains a best-fit result, "
                    "replace it with the new result.")
+@click.option("-v", "--verbose",
+              is_flag=True,
+              help="Display detailed minimization progress.")
 @click.option("-l", "--legacy",
               is_flag=True,
-              default=False,
               help="Evaluate the grid using the legacy code")
 def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
                    output: str, hdf5_group: str, force_output: bool,
-                   legacy: bool):
+                   verbose: bool, legacy: bool):
     """Make a chi-square fitting of a EOS_MODEL to certain DATASETS.
 
     EOS_MODEL is the name of the model/equation of state.
@@ -281,22 +283,25 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
         progress.console.log(Padding(params_text, (0, 0, 1, 0)),
                              justify="center")
 
+    # Display progress if the verbose flag is set.
+    progress_callback = progress_callback if verbose else None
+
+    if not legacy:
+        best_fit_finder = DEBestFitFinder(_eos_model,
+                                          datasets,
+                                          fixed_specs,
+                                          free_specs,
+                                          callback=progress_callback)
+    else:
+        best_fit_finder = \
+            LegacyDEBestFitFinder(_eos_model,
+                                  datasets,
+                                  fixed_specs,
+                                  free_specs,
+                                  callback=progress_callback)
     with progress:
         task1 = progress.add_task("[red]Progress", start=False)
         progress.update(task1, total=10)
-        if not legacy:
-            best_fit_finder = DEBestFitFinder(_eos_model,
-                                              datasets,
-                                              fixed_specs,
-                                              free_specs,
-                                              callback=progress_callback)
-        else:
-            best_fit_finder = \
-                LegacyDEBestFitFinder(_eos_model,
-                                      datasets,
-                                      fixed_specs,
-                                      free_specs,
-                                      callback=progress_callback)
         best_fit_result = best_fit_finder.exec()
 
     with h5py.File(out_file, file_mode) as h5f:
