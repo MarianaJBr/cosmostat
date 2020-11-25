@@ -17,6 +17,7 @@ It is based on Planck 2015 Cosmological Parameters report
 import typing as t
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
+from functools import partial
 from math import log10, sqrt
 
 import numpy as np
@@ -49,14 +50,6 @@ class Params(t.NamedTuple):
     omegach2: float
 
 
-def b_to_g(z: float, params: Params):
-    """Baryon-to-photon ratio as function of z"""
-    # return 3 * OMEGAB0 / (4 * OMEGAG0 * (1 + z))
-    h = params.h
-    omegabh2 = params.omegabh2
-    return 3 * (omegabh2 / h ** 2) / (4 * OMEGAG0 * (1 + z))
-
-
 @dataclass
 class Dataset:
     """Represent a database information."""
@@ -77,6 +70,224 @@ T_CosmologyFunc = t.Union[
     t.Callable[[float, Params], float],
     t.Callable[[Params], float]
 ]
+
+
+def b_to_g(z: float, params: Params):
+    """Baryon-to-photon ratio as function of z"""
+    # return 3 * OMEGAB0 / (4 * OMEGAG0 * (1 + z))
+    h = params.h
+    omegabh2 = params.omegabh2
+    return 3 * (omegabh2 / h ** 2) / (4 * OMEGAG0 * (1 + z))
+
+
+def hubble_flat_base(z: float,
+                     params: Params,
+                     f_dez: T_CosmologyFunc):
+    """Hubble function in terms of OmegaMatter flat universe."""
+    h = params.h
+    omegabh2 = params.omegabh2
+    omegach2 = params.omegach2
+    omega_m = (omegabh2 + omegach2) / h ** 2
+    hubble_func = H0P * h * sqrt(
+        OMEGAR0 * (1 + z) ** 4 + omega_m * (1 + z) ** 3 +
+        (1 - OMEGAR0 - omega_m) * f_dez(z, params))
+    return hubble_func
+
+
+def ez_flat_base(z: float,
+                 params: Params,
+                 hubble_flat: T_CosmologyFunc):
+    """Normalized Hubble function E(z) = H(z)/H0 for the flat
+    Universe.
+    """
+    h = params.h
+    hz = hubble_flat(z, params)
+    h0 = H0P * h
+    return hz / h0
+
+
+def rho_de_base(z: float,
+                params: Params,
+                f_dez: T_CosmologyFunc):
+    """Volumetric energy density of the dark energy fluid component."""
+    h = params.h
+    omegabh2 = params.omegabh2
+    omegach2 = params.omegach2
+    omega_m = (omegabh2 + omegach2) / h ** 2
+    rho_de0 = (1 - omega_m - OMEGAR0) * RHOCR0
+    return rho_de0 * f_dez(z, params)
+
+
+def r_s_integrand_base(z: float,
+                       params: Params,
+                       _b_to_g: T_CosmologyFunc,
+                       hubble_flat: T_CosmologyFunc):
+    """ flat universe """
+    cs = 1 / sqrt(3 * (1 + _b_to_g(z, params)))
+    return cs / hubble_flat(z, params)
+
+
+def r_s_base(zeval: float,
+             params: Params,
+             r_s_integrand: T_CosmologyFunc):
+    """Sound horizon at zeval either zdrag or zdec"""
+    # noinspection PyTupleAssignmentBalance,PyTypeChecker
+    r_sound, error = integrate.quad(r_s_integrand, zeval, np.inf,
+                                    epsabs=QUAD_EPS_ABS,
+                                    args=(params,))
+    return r_sound
+
+
+def d_vz_integrand_base(zp: float,
+                        params: Params,
+                        hubble_flat: T_CosmologyFunc):
+    """"""
+    return 1 / hubble_flat(zp, params)
+
+
+def d_vz_base(z: float,
+              params: Params,
+              hubble_flat: T_CosmologyFunc,
+              d_vz_integrand: T_CosmologyFunc):
+    """Dilation scale for rbao size """
+    # noinspection PyTupleAssignmentBalance,PyTypeChecker
+    int2, error = integrate.quad(d_vz_integrand, 0, z,
+                                 epsabs=QUAD_EPS_ABS,
+                                 args=(params,))
+    int3 = (z / hubble_flat(z, params)) ** (1. / 3)
+    return int3 * int2 ** (2 / 3)
+
+
+def r_bao_base(z: float,
+               params: Params,
+               r_s: T_CosmologyFunc,
+               d_vz: T_CosmologyFunc):
+    """BAO scale at redshift z."""
+    rv = r_s(ZDRAG, params) / d_vz(z, params)
+    if isinstance(rv, complex):
+        raise ValueError
+    return rv
+
+
+def d_ang_integrand_base(zp: float,
+                         params: Params,
+                         hubble_flat: T_CosmologyFunc):
+    """Integrand for the angular diameter distance: dz/H(z)
+
+    hubble_func = H0p * h * sqrt(
+    OMEGAR0 * (1 + z) ** 4 + (omegabh2+omegach2)/h**2 * (1 + z) ** 3 +
+    (1 - OMEGAR0 - ((omegabh2+omegach2)/h**2)) * f_DEz(z, w_params))
+    """
+    return 1 / hubble_flat(zp, params)
+
+
+def d_ang_base(z: float,
+               params: Params,
+               d_ang_integrand: T_CosmologyFunc):
+    """Angular Diameter distance:
+    D_a(z) = c/(1+z)Int_0^z(dz'/H(z'))
+    """
+    # noinspection PyTupleAssignmentBalance,PyTypeChecker
+    int_val, error = integrate.quad(d_ang_integrand, 0, z,
+                                    epsabs=QUAD_EPS_ABS,
+                                    args=(params,))
+    return 1 / (1 + z) * int_val
+
+
+def distance_sne_integrand_base(z: float,
+                                params: Params,
+                                hubble_flat: T_CosmologyFunc):
+    """"""
+    return 1 / hubble_flat(z, params)
+
+
+def distance_sne_base(z: float,
+                      params: Params,
+                      distance_sne_integrand: T_CosmologyFunc):
+    """Luminosity distance for SNe data.
+
+    (1+z) * Int_0^z dz E^-1(z; args) where E(z) = H(z)/H0
+    """
+    # noinspection PyTupleAssignmentBalance,PyTypeChecker
+    int_val, err = integrate.quad(distance_sne_integrand, 0, z,
+                                  epsabs=QUAD_EPS_ABS,
+                                  args=(params,))
+    return (1 + z) * int_val
+
+
+def mu_sne_base(z: float,
+                params: Params,
+                distance_sne: T_CosmologyFunc):
+    """Modulus distance for SNe data: 5*log10 of dist_lum(z)
+
+    5*Log10(distance_SNe in Mpc) + 25
+    """
+    mu0 = 25
+    d = distance_sne(z, params)
+    return 5 * log10(d) + mu0
+
+
+def hz_hubble_flat_base(z: float,
+                        params: Params,
+                        hubble_flat: T_CosmologyFunc):
+    """Hubble function in terms of OmegaMatter flat universe."""
+    return 100 * hubble_flat(z, params) / H0P
+
+
+def r_cmb_base(params: Params,
+               d_ang: T_CosmologyFunc):
+    """R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c"""
+    h = params.h
+    omegabh2 = params.omegabh2
+    omegach2 = params.omegach2
+    omega_m = (omegabh2 + omegach2) / h ** 2
+    # Important to keep H0p factor for units
+    factor1 = sqrt(omega_m) * h * H0P
+    d_ang_z_star = d_ang(ZDEC, params) * (1 + ZDEC)
+    return factor1 * d_ang_z_star
+
+
+def theta_star_base(params: Params,
+                    r_s: T_CosmologyFunc,
+                    d_vz_integrand: T_CosmologyFunc):
+    """Angular sound horizon at decoupling.
+
+    Used to calculate l_A in Wang & Mukherjee (2007) 's matrix
+    for the CMB compressed likelihood.
+    :return: Theta(z_dec) = r_s(z_dec) / D_V(z_dec)
+    """
+    # noinspection PyTupleAssignmentBalance,PyTypeChecker
+    int_val, error = integrate.quad(d_vz_integrand, 0, ZDEC,
+                                    epsabs=QUAD_EPS_ABS,
+                                    args=(params,))
+    theta_dec = r_s(ZDEC, params) / int_val
+    return theta_dec
+
+
+def l_a_base(params: Params,
+             theta_star: T_CosmologyFunc):
+    """Angular scale of the sound horizon at last scattering.
+    l_A:= pi/Theta_*
+    Used in Wang & Mukherjee (2007) 's matrix for the CMB compressed
+    likelihood. See section 5.1.6 of Planck 2015 DE & MG paper
+    :return: l_A = pi/Theta(z*)
+    """
+    t_s = theta_star(params)
+    return np.pi / t_s
+
+
+def y_vec_cmb_base(params: Params,
+                   r_cmb: T_CosmologyFunc,
+                   l_a: T_CosmologyFunc):
+    """Standard chi-square function."""
+    omegabh2 = params.omegabh2
+    y_cmb = np.array([
+        1.7382 - r_cmb(params),
+        301.63 - l_a(params),
+        0.02262 - omegabh2,
+        # 0.9741 - 0.97415
+    ])
+    return y_cmb
 
 
 @dataclass
@@ -133,269 +344,104 @@ class Functions(metaclass=ABCMeta):
     def _make_hubble_flat_func(self):
         """"""
         f_dez = self.f_dez
-
-        def hubble_flat(z: float, params: Params):
-            """Hubble function in terms of OmegaMatter flat universe."""
-            h = params.h
-            omegabh2 = params.omegabh2
-            omegach2 = params.omegach2
-            omega_m = (omegabh2 + omegach2) / h ** 2
-            hubble_func = H0P * h * sqrt(
-                OMEGAR0 * (1 + z) ** 4 + omega_m * (1 + z) ** 3 +
-                (1 - OMEGAR0 - omega_m) * f_dez(z, params))
-            return hubble_func
-
-        return hubble_flat
+        return partial(hubble_flat_base, f_dez=f_dez)
 
     def _make_ez_flat_func(self):
         """"""
         hubble_flat = self.hubble_flat
-
-        def ez_flat(z: float, params: Params):
-            """Normalized Hubble function E(z) = H(z)/H0 for the flat
-            Universe.
-            """
-            h = params.h
-            hz = hubble_flat(z, params)
-            h0 = H0P * h
-            return hz / h0
-
-        return ez_flat
+        return partial(ez_flat_base, hubble_flat=hubble_flat)
 
     def _make_rho_de_func(self):
         """"""
         f_dez = self.f_dez
+        return partial(rho_de_base, f_dez=f_dez)
 
-        def rho_de(z: float, params: Params):
-            """Volumetric energy density of the dark energy fluid component."""
-            h = params.h
-            omegabh2 = params.omegabh2
-            omegach2 = params.omegach2
-            omegam = (omegabh2 + omegach2) / h ** 2
-            rho_de0 = (1 - omegam - OMEGAR0) * RHOCR0
-            return rho_de0 * f_dez(z, params)
-
-        return rho_de
-
-    def _make_r_s_integrand(self):
+    def _make_r_s_integrand(self) -> T_CosmologyFunc:
         """"""
         hubble_flat = self.hubble_flat
         _b_to_g = self.b_to_g
-
-        def r_s_integrand(z: float, params: Params):
-            """ flat universe """
-            cs = 1 / sqrt(3 * (1 + _b_to_g(z, params)))
-            return cs / hubble_flat(z, params)
-
-        return r_s_integrand
+        return partial(r_s_integrand_base,
+                       _b_to_g=_b_to_g,
+                       hubble_flat=hubble_flat)
 
     def _make_r_s_func(self):
         """"""
         r_s_integrand = self._make_r_s_integrand()
-
-        def r_s(zeval: float, params: Params):
-            """Sound horizon at zeval either zdrag or zdec"""
-            # noinspection PyTupleAssignmentBalance
-            r_sound, error = integrate.quad(r_s_integrand, zeval, np.inf,
-                                            epsabs=QUAD_EPS_ABS,
-                                            args=(params,))
-            return r_sound
-
-        return r_s
+        return partial(r_s_base, r_s_integrand=r_s_integrand)
 
     def _make_d_vz_integrand_func(self):
         """"""
         hubble_flat = self.hubble_flat
-
-        def d_vz_integrand(zp: float, params: Params):
-            return 1 / hubble_flat(zp, params)
-
-        return d_vz_integrand
+        return partial(d_vz_integrand_base, hubble_flat=hubble_flat)
 
     def _make_d_vz_func(self):
         """"""
         hubble_flat = self.hubble_flat
         d_vz_integrand = self._make_d_vz_integrand_func()
-
-        def d_vz(z: float, params: Params):
-            """Dilation scale for rbao size """
-            # noinspection PyTupleAssignmentBalance
-            int2, error = integrate.quad(d_vz_integrand, 0, z,
-                                         epsabs=QUAD_EPS_ABS,
-                                         args=(params,))
-            int3 = (z / hubble_flat(z, params)) ** (1. / 3)
-            return int3 * int2 ** (2 / 3)
-
-        return d_vz
+        return partial(d_vz_base,
+                       hubble_flat=hubble_flat,
+                       d_vz_integrand=d_vz_integrand)
 
     def _make_r_bao_func(self):
         """"""
         r_s = self.r_s
         d_vz = self.d_vz
-
-        def r_bao(z: float, params: Params):
-            """BAO scale at redshift z."""
-            rv = r_s(ZDRAG, params) / d_vz(z, params)
-            if isinstance(rv, complex):
-                raise ValueError
-            return rv
-
-        return r_bao
+        return partial(r_bao_base, r_s=r_s, d_vz=d_vz)
 
     def _make_d_ang_integrand_func(self):
         """"""
         hubble_flat = self.hubble_flat
-
-        def d_ang_integrand(zp: float, params: Params):
-            """Integrand for the angular diameter distance: dz/H(z)
-
-            hubble_func = H0p * h * sqrt(
-            OMEGAR0 * (1 + z) ** 4 + (omegabh2+omegach2)/h**2 * (1 + z) ** 3 +
-            (1 - OMEGAR0 - ((omegabh2+omegach2)/h**2)) * f_DEz(z, w_params))
-            """
-            return 1 / hubble_flat(zp, params)
-
-        return d_ang_integrand
+        return partial(d_ang_integrand_base, hubble_flat=hubble_flat)
 
     def _make_d_ang_func(self):
         """"""
         d_ang_integrand = self._make_d_ang_integrand_func()
-
-        def d_ang(z: float, params: Params):
-            """Angular Diameter distance:
-            D_a(z) = c/(1+z)Int_0^z(dz'/H(z'))
-            """
-            # noinspection PyTupleAssignmentBalance
-            int_val, error = integrate.quad(d_ang_integrand, 0, z,
-                                            epsabs=QUAD_EPS_ABS,
-                                            args=(params,))
-            return 1 / (1 + z) * int_val
-
-        return d_ang
+        return partial(d_ang_base, d_ang_integrand=d_ang_integrand)
 
     def _make_distance_sne_integrand_func(self):
         """SNeIa distances integrand."""
         hubble_flat = self.hubble_flat
-
-        def distance_sne_integrand(z: float, params: Params):
-            """"""
-            return 1 / hubble_flat(z, params)
-
-        return distance_sne_integrand
+        return partial(distance_sne_integrand_base, hubble_flat=hubble_flat)
 
     def _make_distance_sne_func(self):
         """SNeIa distances definition."""
         distance_sne_integrand = self._make_distance_sne_integrand_func()
-
-        def distance_sne(z: float, params: Params):
-            """Luminosity distance for SNe data.
-
-            (1+z) * Int_0^z dz E^-1(z; args) where E(z) = H(z)/H0
-            """
-            # noinspection PyTupleAssignmentBalance
-            int_val, err = integrate.quad(distance_sne_integrand, 0, z,
-                                          epsabs=QUAD_EPS_ABS,
-                                          args=(params,))
-            return (1 + z) * int_val
-
-        return distance_sne
+        return partial(distance_sne_base,
+                       distance_sne_integrand=distance_sne_integrand)
 
     def _make_mu_sne_func(self):
         """"""
         distance_sne = self._make_distance_sne_func()
-
-        def mu_sne(z: float, params: Params):
-            """Modulus distance for SNe data: 5*log10 of dist_lum(z)
-
-            5*Log10(distance_SNe in Mpc) + 25
-            """
-            mu0 = 25
-            d = distance_sne(z, params)
-            return 5 * log10(d) + mu0
-
-        return mu_sne
+        return partial(mu_sne_base, distance_sne=distance_sne)
 
     def _make_hz_hubble_flat_func(self):
         """"""
         hubble_flat = self.hubble_flat
-
-        def hz_hubble_flat(z: float, params: Params):
-            """Hubble function in terms of OmegaMatter flat universe."""
-            return 100 * hubble_flat(z, params) / H0P
-
-        return hz_hubble_flat
+        return partial(hz_hubble_flat_base, hubble_flat=hubble_flat)
 
     def _make_r_cmb(self):
         """"""
         d_ang = self.d_ang
-
-        def r_cmb(params: Params):
-            """R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c"""
-            h = params.h
-            omegabh2 = params.omegabh2
-            omegach2 = params.omegach2
-            omega_m = (omegabh2 + omegach2) / h ** 2
-            # Important to keep H0p factor for units
-            factor1 = sqrt(omega_m) * h * H0P
-            d_ang_z_star = d_ang(ZDEC, params) * (1 + ZDEC)
-            return factor1 * d_ang_z_star
-
-        return r_cmb
+        return partial(r_cmb_base, d_ang=d_ang)
 
     def _make_theta_star(self):
         """"""
         r_s = self.r_s
         d_vz_integrand = self._make_d_vz_integrand_func()
-
-        def theta_star(params: Params):
-            """Angular sound horizon at decoupling.
-
-            Used to calculate l_A in Wang & Mukherjee (2007) 's matrix
-            for the CMB compressed likelihood.
-            :return: Theta(z_dec) = r_s(z_dec) / D_V(z_dec)
-            """
-            # noinspection PyTupleAssignmentBalance
-            int_val, error = integrate.quad(d_vz_integrand, 0, ZDEC,
-                                            epsabs=QUAD_EPS_ABS,
-                                            args=(params,))
-            theta_dec = r_s(ZDEC, params) / int_val
-            return theta_dec
-
-        return theta_star
+        return partial(theta_star_base,
+                       r_s=r_s,
+                       d_vz_integrand=d_vz_integrand)
 
     def _make_l_a_func(self):
         """"""
         theta_star = self.theta_star
-
-        def l_a(params: Params):
-            """Angular scale of the sound horizon at last scattering.
-            l_A:= pi/Theta_*
-            Used in Wang & Mukherjee (2007) 's matrix for the CMB compressed
-            likelihood. See section 5.1.6 of Planck 2015 DE & MG paper
-            :return: l_A = pi/Theta(z*)
-            """
-            t_s = theta_star(params)
-            return np.pi / t_s
-
-        return l_a
+        return partial(l_a_base, theta_star=theta_star)
 
     def _make_y_vec_cmb_func(self):
         """"""
         r_cmb = self.r_cmb
         l_a = self.l_a
-
-        def y_vec_cmb(params: Params):
-            """Standard chi-square function."""
-            omegabh2 = params.omegabh2
-            y_cmb = np.array([
-                1.7382 - r_cmb(params),
-                301.63 - l_a(params),
-                0.02262 - omegabh2,
-                # 0.9741 - 0.97415
-            ])
-            return y_cmb
-
-        return y_vec_cmb
+        return partial(y_vec_cmb_base, r_cmb=r_cmb, l_a=l_a)
 
 
 @dataclass(frozen=True)

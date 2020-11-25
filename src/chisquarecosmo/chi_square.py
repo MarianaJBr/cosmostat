@@ -1,6 +1,7 @@
 import typing as t
 from abc import ABCMeta, abstractmethod
 from dataclasses import astuple, dataclass, field
+from functools import partial
 
 import h5py
 import numpy as np
@@ -306,6 +307,50 @@ def has_best_fit(group: h5py.Group):
 T_BestFitFinderCallback = t.Callable[[Params, float], float]
 
 
+def chi_square_base(params: Params,
+                    chi_square_funcs: t.List[T_LikelihoodFunc]):
+    """Total chi-square function."""
+    try:
+        return sum((func(params) for func in chi_square_funcs))
+    except ValueError:
+        return np.inf
+
+
+def objective_func_base(x: t.Tuple[float, ...],
+                        params_cls: t.Type[Params],
+                        chi_square_func: T_LikelihoodFunc,
+                        fixed_specs: T_FixedParamSpecs,
+                        free_specs: t.List[FreeParamSpec]):
+    """Objective function.
+
+    Evaluates the chi-square function.
+    """
+    fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+    var_names = [spec.name for spec in free_specs]
+    params_dict = dict(zip(var_names, x))
+    params_dict.update(fixed_specs_dict)
+    params = params_cls(**params_dict)
+    return chi_square_func(params)
+
+
+def callback_base(x: t.Tuple[float, ...],
+                  convergence: float = None, *,
+                  params_cls: t.Type[Params],
+                  chi_square_func: T_LikelihoodFunc,
+                  fixed_specs: T_FixedParamSpecs,
+                  free_specs: t.List[FreeParamSpec],
+                  callback_func: T_BestFitFinderCallback):
+    """Callback for SciPy optimizer."""
+    fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
+    var_names = [spec.name for spec in free_specs]
+
+    params_dict = dict(zip(var_names, x))
+    params_dict.update(fixed_specs_dict)
+    params = params_cls(**params_dict)
+    chi_square = chi_square_func(params)
+    return callback_func(params, chi_square)
+
+
 @dataclass
 class BestFitFinder:
     """Find the best chi-square fitting params of a model to certain data."""
@@ -344,66 +389,40 @@ class BestFitFinder:
         likelihoods = [Likelihood(model, dataset) for dataset in datasets]
         return [lk.chi_square for lk in likelihoods]
 
-    def _make_objective_func(self):
-        """The objective function."""
-        params_cls = self.eos_model.params_cls
-        fixed_specs = self.fixed_specs
-        free_specs = self.free_specs
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-        var_names = [spec.name for spec in free_specs]
-        chi_square_func = self.chi_square
-
-        def objective_func(x: t.Tuple[float, ...]):
-            """Objective function.
-
-            Evaluates the chi-square function.
-            """
-            params_dict = dict(zip(var_names, x))
-            params_dict.update(fixed_specs_dict)
-            params = params_cls(**params_dict)
-            return chi_square_func(params)
-
-        return objective_func
-
-    def _make_callback_func(self):
+    def _make_objective_func(self) -> T_LikelihoodFunc:
         """"""
         params_cls = self.eos_model.params_cls
         fixed_specs = self.fixed_specs
         free_specs = self.free_specs
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-        var_names = [spec.name for spec in free_specs]
-        fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
-        var_names = [spec.name for spec in free_specs]
+        chi_square_func = self.chi_square
+        return partial(objective_func_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs)
+
+    def _make_callback_func(self) -> t.Optional[T_LikelihoodFunc]:
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
         chi_square_func = self.chi_square
         _callback_func = self.callback
 
         if _callback_func is None:
             return None
 
-        def callback_func(x: t.Tuple[float, ...],
-                          convergence: float = None):
-            """"""
-            params_dict = dict(zip(var_names, x))
-            params_dict.update(fixed_specs_dict)
-            params = params_cls(**params_dict)
-            chi_square = chi_square_func(params)
-            return _callback_func(params, chi_square)
+        return partial(callback_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs,
+                       callback_func=_callback_func)
 
-        return callback_func
-
-    def _make_chi_square_func(self):
+    def _make_chi_square_func(self) -> T_LikelihoodFunc:
         """Get the chi-square function."""
-        chi_square_funcs = self.chi_square_funcs
-
-        def chi_square(params: Params):
-            """Chi-square function."""
-            try:
-                return sum((func(params) for func in chi_square_funcs))
-            except ValueError:
-                return np.inf
-            # return sum((func(params) for func in chi_square_funcs))
-
-        return chi_square
+        return partial(chi_square_base,
+                       chi_square_funcs=self.chi_square_funcs)
 
     def _exec(self):
         """Optimization routine."""
