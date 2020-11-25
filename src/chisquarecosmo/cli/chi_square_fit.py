@@ -5,7 +5,7 @@ import click
 import h5py
 import numpy as np
 from chisquarecosmo.chi_square import (
-    BestFitFinder, FixedParamSpec, FreeParamSpec, has_best_fit
+    DEBestFitFinder, FixedParamSpec, FreeParamSpec, has_best_fit
 )
 from chisquarecosmo.cosmology import (
     Params, get_dataset_join, get_model, registered_dataset_joins,
@@ -13,7 +13,7 @@ from chisquarecosmo.cosmology import (
 )
 from chisquarecosmo.exceptions import CLIError
 from chisquarecosmo.legacy.chi_square import (
-    BestFitFinder as LegacyBestFitFinder
+    DEBestFitFinder as LegacyDEBestFitFinder
 )
 from chisquarecosmo.util import console
 from click import BadParameter
@@ -285,18 +285,18 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
         task1 = progress.add_task("[red]Progress", start=False)
         progress.update(task1, total=10)
         if not legacy:
-            best_fit_finder = BestFitFinder(_eos_model,
-                                            datasets,
-                                            fixed_specs,
-                                            free_specs,
-                                            callback=progress_callback)
+            best_fit_finder = DEBestFitFinder(_eos_model,
+                                              datasets,
+                                              fixed_specs,
+                                              free_specs,
+                                              callback=progress_callback)
         else:
             best_fit_finder = \
-                LegacyBestFitFinder(_eos_model,
-                                    datasets,
-                                    fixed_specs,
-                                    free_specs,
-                                    callback=progress_callback)
+                LegacyDEBestFitFinder(_eos_model,
+                                      datasets,
+                                      fixed_specs,
+                                      free_specs,
+                                      callback=progress_callback)
         best_fit_result = best_fit_finder.exec()
 
     with h5py.File(out_file, file_mode) as h5f:

@@ -352,7 +352,7 @@ def callback_base(x: t.Tuple[float, ...],
 
 
 @dataclass
-class BestFitFinder:
+class BestFitFinder(metaclass=ABCMeta):
     """Find the best chi-square fitting params of a model to certain data."""
     eos_model: Model
     datasets: DatasetJoin
@@ -389,48 +389,25 @@ class BestFitFinder:
         likelihoods = [Likelihood(model, dataset) for dataset in datasets]
         return [lk.chi_square for lk in likelihoods]
 
+    @abstractmethod
     def _make_objective_func(self) -> T_LikelihoodFunc:
         """"""
-        params_cls = self.eos_model.params_cls
-        fixed_specs = self.fixed_specs
-        free_specs = self.free_specs
-        chi_square_func = self.chi_square
-        return partial(objective_func_base,
-                       params_cls=params_cls,
-                       chi_square_func=chi_square_func,
-                       fixed_specs=fixed_specs,
-                       free_specs=free_specs)
+        pass
 
+    @abstractmethod
     def _make_callback_func(self) -> t.Optional[T_LikelihoodFunc]:
         """"""
-        params_cls = self.eos_model.params_cls
-        fixed_specs = self.fixed_specs
-        free_specs = self.free_specs
-        chi_square_func = self.chi_square
-        _callback_func = self.callback
+        pass
 
-        if _callback_func is None:
-            return None
-
-        return partial(callback_base,
-                       params_cls=params_cls,
-                       chi_square_func=chi_square_func,
-                       fixed_specs=fixed_specs,
-                       free_specs=free_specs,
-                       callback_func=_callback_func)
-
+    @abstractmethod
     def _make_chi_square_func(self) -> T_LikelihoodFunc:
-        """Get the chi-square function."""
-        return partial(chi_square_base,
-                       chi_square_funcs=self.chi_square_funcs)
+        """"""
+        pass
 
-    def _exec(self):
+    @abstractmethod
+    def _exec(self) -> T_OptimizationInfo:
         """Optimization routine."""
-        # Start the optimization procedure.
-        return differential_evolution(self.objective_func,
-                                      bounds=self.free_specs_bounds,
-                                      callback=self.callback_func,
-                                      polish=True)
+        pass
 
     def exec(self):
         """Start the optimization procedure."""
@@ -476,6 +453,54 @@ class BestFitFinder:
                          aic=aic, bic=bic,
                          optimization_info=optimization_info)
         return result
+
+
+@dataclass
+class DEBestFitFinder(BestFitFinder):
+    """A best-fit finder that uses SciPy differential evolution algorithm."""
+
+    def _make_objective_func(self) -> T_LikelihoodFunc:
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        chi_square_func = self.chi_square
+        return partial(objective_func_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs)
+
+    def _make_callback_func(self) -> t.Optional[T_LikelihoodFunc]:
+        """"""
+        params_cls = self.eos_model.params_cls
+        fixed_specs = self.fixed_specs
+        free_specs = self.free_specs
+        chi_square_func = self.chi_square
+        _callback_func = self.callback
+
+        if _callback_func is None:
+            return None
+
+        return partial(callback_base,
+                       params_cls=params_cls,
+                       chi_square_func=chi_square_func,
+                       fixed_specs=fixed_specs,
+                       free_specs=free_specs,
+                       callback_func=_callback_func)
+
+    def _make_chi_square_func(self) -> T_LikelihoodFunc:
+        """Get the chi-square function."""
+        return partial(chi_square_base,
+                       chi_square_funcs=self.chi_square_funcs)
+
+    def _exec(self) -> T_OptimizationInfo:
+        """Optimization routine."""
+        # Start the optimization procedure.
+        return differential_evolution(self.objective_func,
+                                      bounds=self.free_specs_bounds,
+                                      callback=self.callback_func,
+                                      polish=True)
 
 
 def has_grid(group: h5py.Group):

@@ -68,7 +68,7 @@ def callback_base(x: t.Tuple[float, ...],
 
 
 @dataclass
-class BestFitFinder(BaseBestFitFinder):
+class DEBestFitFinder(BaseBestFitFinder):
     """Find the best chi-square fitting params of a model to certain data."""
 
     @property
@@ -120,7 +120,6 @@ class BestFitFinder(BaseBestFitFinder):
         return differential_evolution(self.objective_func,
                                       bounds=self.free_specs_bounds,
                                       callback=self.callback_func,
-                                      workers=2,
                                       polish=True)
 
 
