@@ -204,10 +204,12 @@ def l_A(w_params, cosmo_params):
 @lru_cache(maxsize=1024 * 1024, typed=True)
 def rBAO(z, w_params, cosmo_params):
     """BAO scale at redshit z """
-    return (
+    rv = (
         r_s(ZDRAG, w_params, cosmo_params) /
-        d_vz(z, w_params, cosmo_params)
-    )
+        d_vz(z, w_params, cosmo_params))
+    if isinstance(rv, complex):
+        raise ValueError
+    return rv
 
 
 # =============== SNeIa distances definition    =================
@@ -238,4 +240,6 @@ def mu_SNe(z, w_params, cosmo_params):
     cosmo_params = h, omegabh2, omegach2
     d = distance_SNe(z, w_params, cosmo_params)
     mu0 = 25
+    if d < 0:
+        raise ValueError
     return 5 * np.log10(d) + mu0
