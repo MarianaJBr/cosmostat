@@ -1,6 +1,5 @@
 import os
 import typing as t
-from dataclasses import asdict, dataclass
 from functools import lru_cache
 from math import exp
 
@@ -9,6 +8,7 @@ from chisquarecosmo.cosmology import (
     Functions as BaseFunctions, Model, Params as ParamsBase,
     T_CosmologyFunc
 )
+from dataclasses import asdict, dataclass
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
 
@@ -54,20 +54,33 @@ def wz(z: float, params: Params):
 
     One parametrization to fit them all!
 
-    Case 1. If w1 = 0 we get a quintessence-like evolution
-            In this case we
+    Case 0. If w0 = 0 we recover LCDM with w(z) = -1 -- cosmological const.
+    Case 1. If w1 = w2 = 1 we have w(z) = -1 + w0*exp(-n)*z -- exponential-like
+    Case 2. If w2 = 0, we have w(z) = -1 -w0*exp(-z)(z**w1 -z) -- f(R) like
+    Case 3. If w1 = 0 we get, by direct substitution w(z) = -1 -w0*Exp(-z)(1-z-w2)
+                      which mimics a quintessence-like evolution
+            In this case we redefined the parameters to avoid degeneracy among
+            w0 & w2:
+            w(z|w1 = 0) = -1 + exp(-z) (w0*z + w2') with w2' = w0(w2-1)
+    Case 4. Fixing w1 to be in [0, 1], and w0, w2 Real numbers, we have the most
+            general evolution with
+            w(z) = -1 - A * Exp(-z) [z^n -z -C]
+
+    The only fixed behaviour is the limit w(z>>0) --> -1
+
+    :param w0: A: fixes the amplitude
+    :param w1: n: power of the polynomial, fixes the number of roots and crosses on the x-axis
+    :param w2: C: additive constant, scrolls the roots left/right along the x-axis
+    :returns: w(z) for given value of z
     """
-    # w0: fija la amplitud
-    # w1: potencia del polinomio (numero de raices, cortes)
-    # w2: recorre el polinomio derecha/izquierda
-    w0 = params.w0
     w1 = params.w1
     w2 = params.w2
     if w0 == 0:
         return -1
     if w1 == 0:
-        # return -1 - w0 * np.exp(-z) * (1 - z - w2)
-        return -1 + exp(-z) * (w0 * z + w2)
+        # return -1 - w0 * np.exp(-z) * (1 - z - w2) # direct substitution
+        return -1 + exp(-z) * (
+                w0 * z + w2)  # re-definition of eos as explained above
     if w2 == 0:
         return -1 - w0 * exp(-z) * (z ** w1 - z)
     return -1 - w0 * exp(-z) * (z ** w1 - z - w2)
