@@ -7,7 +7,10 @@ import h5py
 import numpy as np
 from dask import bag
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import OptimizeResult, differential_evolution, newton
+from scipy.optimize import (
+    OptimizeResult, differential_evolution,
+    minimize_scalar, newton
+)
 
 from .cosmology import (
     DatasetJoin, Model, Params, get_model
@@ -718,7 +721,7 @@ class ParamGrid:
 
     # Private attributes.
     chi_square_min: float = field(default=None, init=False, repr=False)
-    spl_func: t.Callable[[np.ndarray], np.ndarray] = \
+    spl_func: UnivariateSpline = \
         field(default=None, init=False, repr=False)
 
     def __post_init__(self):
@@ -748,23 +751,48 @@ class ParamGrid:
         # Build the confidence function.
         confidence_func = self.make_confidence_func(chi_square_delta,
                                                     chi_square_min)
+        lower_lim = partition.min()
+        upper_lim = partition.max()
         if ini_guess is None:
             # Find the index of the ``x`` parameter that corresponds to the
             # minimum chi-square.
             min_index = np.nonzero(chi_square == self.chi_square_min)
             assert np.size(min_index) == 1
             ini_guess = partition[min_index][0]
-        min_diff = min(partition.max() - ini_guess,
-                       ini_guess - partition.min())
+        else:
+            assert lower_lim <= ini_guess <= upper_lim
         # Try to find the lower bound. Use the secant method, where one of
         # the starting approximations is the best-fit value of the parameter.
         # The second approximation is a value slightly lower than the best-fit.
-        delta_ini_guess = delta_ini_guess or min_diff / 4
-        xl, xu = ini_guess - delta_ini_guess, ini_guess
-        x_lower, *info = newton(confidence_func, xl, x1=xu, disp=True,
-                                full_output=True)
+        left_range = np.linspace(lower_lim, ini_guess, num=256)
+        chi_square_left = confidence_func(left_range)
+        chi_square_greater = left_range[chi_square_left > 0]
+        if not chi_square_greater.size:
+            x_lower = lower_lim
+        else:
+            xl = chi_square_greater[-1]
+            xu = left_range[chi_square_left < 0][0]
+            try:
+                x_lower, *info = newton(confidence_func, xl, x1=xu, disp=True,
+                                        full_output=True)
+            except RuntimeError:
+                x_lower = lower_lim
         # Try to find the upper bound.
-        xl, xu = ini_guess, ini_guess + delta_ini_guess
-        x_upper, *info = newton(confidence_func, xl, x1=xu, full_output=True)
+        right_range = np.linspace(ini_guess, upper_lim, num=256)
+        chi_square_right = confidence_func(right_range)
+        chi_square_greater = right_range[chi_square_right > 0]
+        if not chi_square_greater.size:
+            x_upper = upper_lim
+        else:
+            xl = right_range[chi_square_right < 0][0]
+            xu = chi_square_greater[0]
+            try:
+                x_upper, *info = newton(confidence_func, xl, x1=xu, disp=True,
+                                        full_output=True)
+            except RuntimeError:
+                x_upper = upper_lim
         # Return the confidence interval.
-        return ConfidenceInterval(ini_guess, x_lower, x_upper)
+        opt_result = minimize_scalar(confidence_func, method="bounded",
+                                     bounds=(x_lower, x_upper))
+        x_bfv = opt_result["x"]
+        return ConfidenceInterval(x_bfv, x_lower, x_upper)
