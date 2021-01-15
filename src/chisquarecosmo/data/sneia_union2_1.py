@@ -19,3 +19,14 @@ dataset = Dataset(name="SNe",
                   label="> SNe U2.1 (557)",
                   data=DATA_SNE,
                   cosmology_func="mu_sne")
+
+## =====================================================================
+# data downloaded from http://supernova.lbl.gov/Union/
+# union2.txt file contains an ASCII table with tab-separated columns:
+#   Supernova Name, Redshift, Distance Modulus, and Distance Modulus Error.
+#   Last column: probability that the supernova was hosted by a low-mass galaxy.
+# Covariance Matrix
+# A 580 x 580 (Union2.1) tab-separated ASCII-format covariance matrix,
+#  available with or without systematics.
+#
+## =====================================================================

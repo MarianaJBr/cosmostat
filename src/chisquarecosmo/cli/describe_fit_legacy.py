@@ -50,9 +50,9 @@ def describe_fit_legacy(eos_model: str, file: str, as_json: bool):
     chi_square_reduced = data[2]
     num_params = len(param_names)
     params = _eos_model.params_cls(*data[3:3 + num_params])
-    omega_m = data[3 + num_params + 1]
-    aic = data[3 + num_params + 2]
-    bic = data[3 + num_params + 3]
+    omega_m = data[3 + num_params]
+    aic = data[3 + num_params + 1]
+    bic = data[3 + num_params + 2]
     fit_result = dict(
         params=dict(params._asdict()),
         eos_today=eos_today,

@@ -5,14 +5,21 @@ import click
 import h5py
 import numpy as np
 from chisquarecosmo.chi_square import (
-    FixedParamSpec, GridExecutor, ParamPartitionSpec, has_grid
+    DaskGridExecutor, FixedParamSpec, Grid, GridIterator, ParamPartitionSpec,
+    has_grid
 )
 from chisquarecosmo.cosmology import (
     get_dataset_join, get_model, registered_dataset_joins,
     registered_models
 )
 from chisquarecosmo.exceptions import CLIError
-from chisquarecosmo.util import DaskProgressBar, console
+from chisquarecosmo.legacy.chi_square import (
+    Grid as LegacyGrid, PoolGridExecutor
+)
+from chisquarecosmo.util import (
+    DaskProgressBar, RichProgressBar, columns,
+    console
+)
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -200,8 +207,13 @@ _datasets = registered_dataset_joins()
               default=False,
               help="If the output file already contains a best-fit result, "
                    "replace it with the new result.")
+@click.option("-l", "--legacy",
+              is_flag=True,
+              default=False,
+              help="Evaluate the grid using the legacy code")
 def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
-                    output: str, hdf5_group: str, force_output: bool):
+                    output: str, hdf5_group: str, force_output: bool,
+                    legacy: bool):
     """Evaluate the chi-square over a grid according to best-fit in FILE.
 
     The chi-square is evaluated for the same model, dataset, and best-fit
@@ -342,13 +354,28 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
                   justify="center")
 
     # Grid object.
-    grid = GridExecutor(eos_model=_eos_model,
-                        datasets=datasets,
-                        fixed_params=fixed_specs,
-                        param_partitions=partition_specs)
-
-    with DaskProgressBar():
-        grid_result = grid.eval()
+    grid_iter = GridIterator(eos_model=_eos_model,
+                             datasets=datasets,
+                             fixed_params=fixed_specs,
+                             param_partitions=partition_specs)
+    if not legacy:
+        grid_exec = DaskGridExecutor()
+        with DaskProgressBar():
+            chi_square_data = grid_exec.map(grid_iter)
+        grid_result = Grid.from_data(chi_square_data, grid_iter)
+    else:
+        progress_bar = RichProgressBar(*columns,
+                                       console=console,
+                                       auto_refresh=False)
+        grid_task = progress_bar.add_task("[red]Progress", total=grid_iter.size)
+        with progress_bar:
+            chi_square_data = []
+            grid_exec_map = PoolGridExecutor().map(grid_iter)
+            for chi_square_value in grid_exec_map:
+                chi_square_data.append(chi_square_value)
+                progress_bar.update(grid_task, advance=1)
+                progress_bar.refresh()
+        grid_result = LegacyGrid.from_data(chi_square_data, grid_iter)
 
     with h5py.File(out_file, file_mode) as h5f:
         grid_result.save(h5f, base_group_name, force_output)
