@@ -1,5 +1,6 @@
 import os
 import typing as t
+from dataclasses import asdict, dataclass
 from functools import lru_cache
 from math import exp
 
@@ -8,7 +9,6 @@ from chisquarecosmo.cosmology import (
     Functions as BaseFunctions, Model, Params as ParamsBase,
     T_CosmologyFunc
 )
-from dataclasses import asdict, dataclass
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
 
@@ -73,6 +73,7 @@ def wz(z: float, params: Params):
     :param w2: C: additive constant, scrolls the roots left/right along the x-axis
     :returns: w(z) for given value of z
     """
+    w0 = params.w0
     w1 = params.w1
     w2 = params.w2
     if w0 == 0:
@@ -80,7 +81,7 @@ def wz(z: float, params: Params):
     if w1 == 0:
         # return -1 - w0 * np.exp(-z) * (1 - z - w2) # direct substitution
         return -1 + exp(-z) * (
-                w0 * z + w2)  # re-definition of eos as explained above
+            w0 * z + w2)  # re-definition of eos as explained above
     if w2 == 0:
         return -1 - w0 * exp(-z) * (z ** w1 - z)
     return -1 - w0 * exp(-z) * (z ** w1 - z - w2)
