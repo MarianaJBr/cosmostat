@@ -4,6 +4,7 @@ import click
 
 from .chi_square_fit import chi_square_fit
 from .chi_square_grid import chi_square_grid
+from .confidence_intervals import confidence_intervals
 from .describe_fit import describe_fit
 from .describe_fit_legacy import describe_fit_legacy
 from .info import info
@@ -13,7 +14,8 @@ COMMANDS = {
     "chi-square-grid": chi_square_grid,
     "describe-fit": describe_fit,
     "describe-fit-legacy": describe_fit_legacy,
-    "info": info
+    "info": info,
+    "confidence-intervals": confidence_intervals
 }
 
 file_dir = pathlib.Path(__file__).parent
