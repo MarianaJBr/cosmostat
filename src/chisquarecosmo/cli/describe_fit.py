@@ -1,4 +1,6 @@
+import json
 import pathlib
+from dataclasses import asdict
 
 import click
 import h5py
@@ -21,7 +23,10 @@ from rich.text import Text
               default="/",
               help="Group where the fitting result is stored. If omitted, "
                    "assume it is saved in the root group.")
-def describe_fit(file: str, hdf5_group: str):
+@click.option("--as-json",
+              is_flag=True,
+              help="Report all output as JSON.")
+def describe_fit(file: str, hdf5_group: str, as_json: bool):
     """Describe a best-fit result in an existing FILE."""
     file = pathlib.Path(file)
     with h5py.File(file, "r") as h5f:
@@ -34,7 +39,18 @@ def describe_fit(file: str, hdf5_group: str):
             err_msg = f"no best-fit result found in {base_group}"
             raise CLIError(err_msg)
         fit_result = BestFit.load(h5f, group_name)
-        # Display minimization process information.
+
+    if as_json:
+        # Report best-fit result as JSON and exit.
+        fit_result_dict = asdict(fit_result)
+        del fit_result_dict["optimization_info"]
+        fit_result_dict["eos_model"] = fit_result.eos_model.name
+        fit_result_dict["datasets"] = fit_result.datasets.name
+        fit_result_dict["params"] = dict(fit_result.params._asdict())
+        json_repr = json.dumps(fit_result_dict)
+        console.print(json_repr, justify="left")
+        return
+
     title_text = Text("chisquarecosmo - Best-Fit Result Description")
     title_text.stylize("bold red")
     title_panel = Panel(title_text, box=box.DOUBLE_EDGE)
