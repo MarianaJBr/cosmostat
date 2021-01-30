@@ -697,20 +697,21 @@ class Grid:
                    chi_square_data=chi_square)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConfidenceInterval:
     """Represent a parameter confidence interval."""
     best_fit: float
     lower_bound: float
     upper_bound: float
+    lower_error: float = field(default=None, init=False, repr=False)
+    upper_error: float = field(default=None, init=False, repr=False)
 
-    @property
-    def lower_error(self):
-        return abs(self.best_fit - self.lower_bound)
-
-    @property
-    def upper_error(self):
-        return abs(self.upper_bound - self.best_fit)
+    def __post_init__(self):
+        """"""
+        lower_error = abs(self.best_fit - self.lower_bound)
+        upper_error = abs(self.upper_bound - self.best_fit)
+        object.__setattr__(self, "lower_error", lower_error)
+        object.__setattr__(self, "upper_error", upper_error)
 
 
 @dataclass
