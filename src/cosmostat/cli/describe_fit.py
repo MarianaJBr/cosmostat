@@ -4,28 +4,27 @@ from dataclasses import asdict
 
 import click
 import h5py
-from cosmostat.chi_square import (
-    BestFit, has_best_fit
-)
-from cosmostat.exceptions import CLIError
-from cosmostat.util import console
 from rich import box
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
 
+from cosmostat.chi_square import BestFit, has_best_fit
+from cosmostat.exceptions import CLIError
+from cosmostat.util import console
+
 
 @click.command()
-@click.argument("file",
-                type=click.Path(exists=True, dir_okay=False))
-@click.option("-g", "--hdf5-group",
-              type=str,
-              default="/",
-              help="Group where the fitting result is stored. If omitted, "
-                   "assume it is saved in the root group.")
-@click.option("--as-json",
-              is_flag=True,
-              help="Report all output as JSON.")
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "-g",
+    "--hdf5-group",
+    type=str,
+    default="/",
+    help="Group where the fitting result is stored. If omitted, "
+    "assume it is saved in the root group.",
+)
+@click.option("--as-json", is_flag=True, help="Report all output as JSON.")
 def describe_fit(file: str, hdf5_group: str, as_json: bool):
     """Describe a best-fit result in an existing FILE."""
     file = pathlib.Path(file)

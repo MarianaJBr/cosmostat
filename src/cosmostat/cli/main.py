@@ -13,7 +13,7 @@ COMMANDS = {
     "chi-square-grid": chi_square_grid,
     "describe-fit": describe_fit,
     "describe-fit-legacy": describe_fit_legacy,
-    "info": info
+    "info": info,
 }
 
 file_dir = pathlib.Path(__file__).parent

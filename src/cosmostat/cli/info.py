@@ -1,12 +1,11 @@
 import click
 import numpy
-from cosmostat import (
-    get_dataset, get_model, registered_dataset_joins,
-    registered_datasets, registered_models
-)
-from cosmostat.util import console
 from rich.padding import Padding
 from rich.table import Table
+
+from cosmostat import (get_dataset, get_model, registered_dataset_joins,
+                       registered_datasets, registered_models)
+from cosmostat.util import console
 
 _models = registered_models()
 _datasets = registered_datasets()
@@ -14,13 +13,17 @@ _dataset_joins = registered_dataset_joins()
 
 
 @click.command()
-@click.option("--models",
-              is_flag=True,
-              help="List the currently implemented cosmological models.")
-@click.option("--datasets",
-              is_flag=True,
-              help="List the currently implemented observational datasets, "
-                   "including combinations of them.")
+@click.option(
+    "--models",
+    is_flag=True,
+    help="List the currently implemented cosmological models.",
+)
+@click.option(
+    "--datasets",
+    is_flag=True,
+    help="List the currently implemented observational datasets, "
+    "including combinations of them.",
+)
 def info(models: bool, datasets: bool):
     """Display information about cosmostat library."""
     # Show all if all flags are false.
@@ -45,14 +48,15 @@ def info(models: bool, datasets: bool):
                 value = param_defaults.get(param_name, "---")
                 data_table.add_row(f"{param_name}", f"{value}")
             models_grid.add_row(f"Name", f"Parameters")
-            models_grid.add_row(Padding(f"[red]{model_name}[/]",
-                                        pad=(1, 1, 1, 0)),
-                                data_table)
+            models_grid.add_row(
+                Padding(f"[red]{model_name}[/]", pad=(1, 1, 1, 0)), data_table
+            )
             models_grid.add_row()
 
         # Display models grid.
-        console.print(Padding("[yellow underline]MODELS", pad=(1, 2)),
-                      justify="left")
+        console.print(
+            Padding("[yellow underline]MODELS", pad=(1, 2)), justify="left"
+        )
         console.print(Padding(models_grid, pad=(0, 2)))
 
     # Display the datasets
@@ -73,21 +77,29 @@ def info(models: bool, datasets: bool):
                 data_table.add_row(f"Redshifts", f"{redshifts}")
                 data_table.add_row(f"Observed", f"{observed}")
                 data_table.add_row(f"Errors", f"{error}")
-            datasets_grid.add_row(Padding(f"Name: [red]{dataset_name}[/] \n"
-                                          f"Label: [red]{dataset.label}[/]"))
+            datasets_grid.add_row(
+                Padding(
+                    f"Name: [red]{dataset_name}[/] \n"
+                    f"Label: [red]{dataset.label}[/]"
+                )
+            )
             datasets_grid.add_row(Padding(data_table, pad=(0, 0, 1, 0)))
 
-        console.print(Padding("[yellow underline]DATASETS", pad=(1, 2)),
-                      justify="center")
+        console.print(
+            Padding("[yellow underline]DATASETS", pad=(1, 2)), justify="center"
+        )
         console.print(Padding(datasets_grid, pad=(0, 2)))
 
         if _dataset_joins:
-            console.print(Padding("[red]Dataset Joins", pad=(0, 2)),
-                          justify="center")
+            console.print(
+                Padding("[red]Dataset Joins", pad=(0, 2)), justify="center"
+            )
             joins = []
             for join_name in _dataset_joins:
                 if join_name in _datasets:
                     continue
                 joins.append(join_name)
-            console.print(Padding(console.highlighter(str(joins)),
-                                  pad=(0, 2, 1, 2)), justify="center")
+            console.print(
+                Padding(console.highlighter(str(joins)), pad=(0, 2, 1, 2)),
+                justify="center",
+            )

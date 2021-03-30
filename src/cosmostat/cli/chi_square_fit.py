@@ -4,18 +4,6 @@ import typing as t
 import click
 import h5py
 import numpy as np
-from cosmostat.chi_square import (
-    DEBestFitFinder, FixedParamSpec, FreeParamSpec, has_best_fit
-)
-from cosmostat.cosmology import (
-    Params, get_dataset_join, get_model, registered_dataset_joins,
-    registered_models
-)
-from cosmostat.exceptions import CLIError
-from cosmostat.legacy.chi_square import (
-    DEBestFitFinder as LegacyDEBestFitFinder
-)
-from cosmostat.util import console
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -25,6 +13,14 @@ from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
 from rich.text import Text
 from toolz import groupby
+
+from cosmostat.chi_square import (DEBestFitFinder, FixedParamSpec,
+                                  FreeParamSpec, has_best_fit)
+from cosmostat.cosmology import (Params, get_dataset_join, get_model,
+                                 registered_dataset_joins, registered_models)
+from cosmostat.exceptions import CLIError
+from cosmostat.legacy.chi_square import DEBestFitFinder as LegacyDEBestFitFinder
+from cosmostat.util import console
 
 # By default, the routine saves the best-fit results in this file.
 # Its full path is relative the current working directory.
@@ -47,13 +43,14 @@ def validate_param(param: T_CLIParam):
             try:
                 value = float(value)
             except ValueError:
-                err_msg = f"invalid value '{value}' for parameter " \
-                          f"'{name}'"
+                err_msg = f"invalid value '{value}' for parameter " f"'{name}'"
                 raise BadParameter(err_msg)
             return FixedParamSpec(name, value)
         else:
-            err_msg = f"invalid parameter bounds '{value_str}' for parameter " \
-                      f"'{name}'"
+            err_msg = (
+                f"invalid parameter bounds '{value_str}' for parameter "
+                f"'{name}'"
+            )
             raise BadParameter(err_msg)
     lower, upper = value_parts
     if not lower:
@@ -62,8 +59,9 @@ def validate_param(param: T_CLIParam):
         try:
             lower = float(lower)
         except ValueError:
-            err_msg = f"invalid lower bound '{lower}' for parameter " \
-                      f"'{name}'"
+            err_msg = (
+                f"invalid lower bound '{lower}' for parameter " f"'{name}'"
+            )
             raise BadParameter(err_msg)
     if not upper:
         upper = np.inf
@@ -71,8 +69,9 @@ def validate_param(param: T_CLIParam):
         try:
             upper = float(upper)
         except ValueError:
-            err_msg = f"invalid upper bound '{upper}' for parameter " \
-                      f"'{name}'"
+            err_msg = (
+                f"invalid upper bound '{upper}' for parameter " f"'{name}'"
+            )
             raise BadParameter(err_msg)
     if lower == upper:
         return FixedParamSpec(name, lower)
@@ -92,48 +91,72 @@ _datasets = registered_dataset_joins()
 @click.command()
 @click.argument("eos_model", type=click.Choice(_models), metavar="EOS_MODEL")
 @click.argument("datasets", type=click.Choice(_datasets), metavar="DATASETS")
-@click.option("--param",
-              type=(str, str),
-              multiple=True,
-              default=None,
-              callback=validate_params,
-              help="Defines a parameter for the minimization function, as well "
-                   "as its value or bounds. The first text element indicates "
-                   "the parameter name, and it is dependent on the equation "
-                   "of stated used in the minimization process. On the one "
-                   "hand, as a single floating-point number, the second text "
-                   "element fixes the parameter value during the minimization. "
-                   "On the other hand, as a string with format 'lower:upper' "
-                   "(where 'lower' and 'upper' are floating-point numbers, "
-                   "including 'inf' and '-inf'), it defines the interval "
-                   "bounds where the parameter will be varied. If 'lower' or "
-                   "'upper' are omitted (but not the middle colon), then the "
-                   "lower bound becomes '-inf', while the upper bound becomes "
-                   "'inf'. If both 'lower' and 'upper' are equal, the "
-                   "parameter is kept fixed during the minimization.")
-@click.option("-o", "--output",
-              type=click.Path(exists=False),
-              required=True,
-              help="HDF5 file where the fitting result will be saved.")
-@click.option("-g", "--hdf5-group",
-              type=str,
-              default="/",
-              help="Group where the fitting result will be saved. If "
-                   "omitted, the result is saved in the root group.")
-@click.option("-f", "--force-output",
-              is_flag=True,
-              default=False,
-              help="If the output file already contains a best-fit result, "
-                   "replace it with the new result.")
-@click.option("-v", "--verbose",
-              is_flag=True,
-              help="Display detailed minimization progress.")
-@click.option("-l", "--legacy",
-              is_flag=True,
-              help="Evaluate the grid using the legacy code")
-def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
-                   output: str, hdf5_group: str, force_output: bool,
-                   verbose: bool, legacy: bool):
+@click.option(
+    "--param",
+    type=(str, str),
+    multiple=True,
+    default=None,
+    callback=validate_params,
+    help="Defines a parameter for the minimization function, as well "
+    "as its value or bounds. The first text element indicates "
+    "the parameter name, and it is dependent on the equation "
+    "of stated used in the minimization process. On the one "
+    "hand, as a single floating-point number, the second text "
+    "element fixes the parameter value during the minimization. "
+    "On the other hand, as a string with format 'lower:upper' "
+    "(where 'lower' and 'upper' are floating-point numbers, "
+    "including 'inf' and '-inf'), it defines the interval "
+    "bounds where the parameter will be varied. If 'lower' or "
+    "'upper' are omitted (but not the middle colon), then the "
+    "lower bound becomes '-inf', while the upper bound becomes "
+    "'inf'. If both 'lower' and 'upper' are equal, the "
+    "parameter is kept fixed during the minimization.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(exists=False),
+    required=True,
+    help="HDF5 file where the fitting result will be saved.",
+)
+@click.option(
+    "-g",
+    "--hdf5-group",
+    type=str,
+    default="/",
+    help="Group where the fitting result will be saved. If "
+    "omitted, the result is saved in the root group.",
+)
+@click.option(
+    "-f",
+    "--force-output",
+    is_flag=True,
+    default=False,
+    help="If the output file already contains a best-fit result, "
+    "replace it with the new result.",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Display detailed minimization progress.",
+)
+@click.option(
+    "-l",
+    "--legacy",
+    is_flag=True,
+    help="Evaluate the grid using the legacy code",
+)
+def chi_square_fit(
+    eos_model: str,
+    datasets: str,
+    param: T_FitParamSpecs,
+    output: str,
+    hdf5_group: str,
+    force_output: bool,
+    verbose: bool,
+    legacy: bool,
+):
     """Make a chi-square fitting of a EOS_MODEL to certain DATASETS.
 
     EOS_MODEL is the name of the model/equation of state.
@@ -157,18 +180,22 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     fixed_spec_name_set = set(spec.name for spec in fixed_specs)
     free_spec_name_set = set(spec.name for spec in free_specs)
     spec_name_set = fixed_spec_name_set | free_spec_name_set
-    required_names = [name for name in param_names if
-                      name not in names_with_defaults]
-    missing_names = [name for name in required_names if
-                     name not in spec_name_set]
+    required_names = [
+        name for name in param_names if name not in names_with_defaults
+    ]
+    missing_names = [
+        name for name in required_names if name not in spec_name_set
+    ]
     unknown_names = [name for name in spec_name_set if name not in param_names]
 
     # Raise error if we have both missing names and unknown names.
     if missing_names and unknown_names:
-        err_msg = f"the required parameters {missing_names} " \
-                  f"were not specified, while the supplied parameters " \
-                  f"{unknown_names} are unknown; the model only accepts " \
-                  f"the following parameters: {param_names}"
+        err_msg = (
+            f"the required parameters {missing_names} "
+            f"were not specified, while the supplied parameters "
+            f"{unknown_names} are unknown; the model only accepts "
+            f"the following parameters: {param_names}"
+        )
         raise CLIError(f"{err_msg}")
     # Raise error if there are missing names.
     elif missing_names:
@@ -176,8 +203,10 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
         raise CLIError(f"{err_msg}")
     # Raise error if there are unknown names.
     elif unknown_names:
-        err_msg = f"unknown parameters {unknown_names}. The model accepts " \
-                  f"the following parameters: {param_names}"
+        err_msg = (
+            f"unknown parameters {unknown_names}. The model accepts "
+            f"the following parameters: {param_names}"
+        )
         raise CLIError(f"{err_msg}")
 
     # Perform checks.
@@ -189,8 +218,10 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
                 base_group = h5f.get(base_group_name, None)
                 if base_group is not None:
                     if has_best_fit(base_group):
-                        message = f"a best-fit result already exists in " \
-                                  f"{base_group}"
+                        message = (
+                            f"a best-fit result already exists in "
+                            f"{base_group}"
+                        )
                         raise CLIError(message)
     else:
         # Create the parent directories.
@@ -204,12 +235,15 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
 
     # Get all parameters that are fixed by default. These parameters
     # automatically are best fit parameters.
-    fixed_spec_name_set = (names_with_defaults - free_spec_name_set -
-                           fixed_spec_name_set)
-    fixed_specs.extend([
-        FixedParamSpec(name, defaults_dict[name]) for name in
-        fixed_spec_name_set
-    ])
+    fixed_spec_name_set = (
+        names_with_defaults - free_spec_name_set - fixed_spec_name_set
+    )
+    fixed_specs.extend(
+        [
+            FixedParamSpec(name, defaults_dict[name])
+            for name in fixed_spec_name_set
+        ]
+    )
     # Sort parameters.
     fixed_specs.sort(key=_by_name_order)
     free_specs.sort(key=_by_name_order)
@@ -237,7 +271,7 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
         var_params_table.add_row(
             Text(str(spec.name), style="bold blue"),
             Text(f"{spec.lower_bound}"),
-            Text(f"{spec.upper_bound}")
+            Text(f"{spec.upper_bound}"),
         )
 
     # Display minimization process information.
@@ -245,8 +279,10 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     title_text.stylize("bold red")
     title_panel = Panel(title_text, box=box.DOUBLE_EDGE)
     console.print(title_panel, justify="center")
-    console.print(Padding("[underline magenta3]Execution Summary[/]",
-                          (1, 0, 1, 0)), justify="center")
+    console.print(
+        Padding("[underline magenta3]Execution Summary[/]", (1, 0, 1, 0)),
+        justify="center",
+    )
     model_text = f"Model: [red bold]{eos_model}[/]"
     console.print(Padding(model_text, (1, 0, 0, 0)), justify="center")
     dataset_text = f"Dataset(s): [red bold]{datasets.label}[/]"
@@ -255,14 +291,21 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     console.print(Padding(out_file_text), justify="center")
     hdf5_group_text = f"HDF5 group: [red bold]{base_group_name}[/]"
     console.print(Padding(hdf5_group_text, (0, 0, 1, 0)), justify="center")
-    console.print(Padding(f"[magenta3 underline bold]Fixed Parameters[/]",
-                          (1, 0, 0, 0)), justify="center")
+    console.print(
+        Padding(f"[magenta3 underline bold]Fixed Parameters[/]", (1, 0, 0, 0)),
+        justify="center",
+    )
     console.print(Padding(fixed_params_table, (0, 5, 0, 5)))
-    console.print(Padding(f"[magenta3 underline bold]Variable Parameters[/]",
-                          (1, 0, 0, 0)), justify="center")
+    console.print(
+        Padding(
+            f"[magenta3 underline bold]Variable Parameters[/]", (1, 0, 0, 0)
+        ),
+        justify="center",
+    )
     console.print(Padding(var_params_table, (0, 5, 0, 5)))
-    console.print(Padding("Best-Fit Params Progress...", (1, 0, 1, 0)),
-                  justify="center")
+    console.print(
+        Padding("Best-Fit Params Progress...", (1, 0, 1, 0)), justify="center"
+    )
 
     columns = (
         TextColumn("[progress.description]{task.description}"),
@@ -270,35 +313,35 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     )
     progress = Progress(*columns, console=console, auto_refresh=True)
 
-    def progress_callback(params: Params,
-                          chi_square: float):
+    def progress_callback(params: Params, chi_square: float):
         """Show a progress message for each iteration."""
-        data_obj = {
-            'params': dict(params._asdict()),
-            'chi_square': chi_square
-        }
-        params_text = Pretty(data_obj,
-                             highlighter=console.highlighter,
-                             justify="left")
-        progress.console.log(Padding(params_text, (0, 0, 1, 0)),
-                             justify="center")
+        data_obj = {"params": dict(params._asdict()), "chi_square": chi_square}
+        params_text = Pretty(
+            data_obj, highlighter=console.highlighter, justify="left"
+        )
+        progress.console.log(
+            Padding(params_text, (0, 0, 1, 0)), justify="center"
+        )
 
     # Display progress if the verbose flag is set.
     progress_callback = progress_callback if verbose else None
 
     if not legacy:
-        best_fit_finder = DEBestFitFinder(_eos_model,
-                                          datasets,
-                                          fixed_specs,
-                                          free_specs,
-                                          callback=progress_callback)
+        best_fit_finder = DEBestFitFinder(
+            _eos_model,
+            datasets,
+            fixed_specs,
+            free_specs,
+            callback=progress_callback,
+        )
     else:
-        best_fit_finder = \
-            LegacyDEBestFitFinder(_eos_model,
-                                  datasets,
-                                  fixed_specs,
-                                  free_specs,
-                                  callback=progress_callback)
+        best_fit_finder = LegacyDEBestFitFinder(
+            _eos_model,
+            datasets,
+            fixed_specs,
+            free_specs,
+            callback=progress_callback,
+        )
     with progress:
         task1 = progress.add_task("[red]Progress", start=False)
         progress.update(task1, total=10)
@@ -312,12 +355,14 @@ def chi_square_fit(eos_model: str, datasets: str, param: T_FitParamSpecs,
     console.print(f"[bold underline]Optimization Result[/]", justify="center")
     best_fit_msg = Padding(f"[yellow]{best_fit_result}[/]", (0, 1, 0, 1))
     console.print(best_fit_msg, justify="center")
-    result_msg = Padding(f"[bold underline]Result saved in file[/]",
-                         (1, 0, 0, 0))
+    result_msg = Padding(
+        f"[bold underline]Result saved in file[/]", (1, 0, 0, 0)
+    )
     console.print(result_msg, justify="center")
     file_path_msg = Padding(f"[yellow]{out_file.absolute()}[/]", (0, 1, 0, 1))
     console.print(file_path_msg, justify="center")
     success_text = "Optimization process successfully finished"
-    success_msg = Padding(f"[underline bold green]{success_text}[/]",
-                          (1, 0, 1, 0))
+    success_msg = Padding(
+        f"[underline bold green]{success_text}[/]", (1, 0, 1, 0)
+    )
     console.print(success_msg, justify="center")

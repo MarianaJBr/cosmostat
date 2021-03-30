@@ -1,7 +1,7 @@
 import numpy as np
-from cosmostat.chi_square import (
-    FixedParamSpec, ParamGrid, fixed_specs_as_array, fixed_specs_from_array
-)
+
+from cosmostat.chi_square import (FixedParamSpec, ParamGrid,
+                                  fixed_specs_as_array, fixed_specs_from_array)
 
 
 def test_confidence_interval():
@@ -17,8 +17,11 @@ def test_confidence_interval():
 
 def test_fixed_specs_conversion():
     """"""
-    specs = [FixedParamSpec("param_1", 0.), FixedParamSpec("param_2", 1.),
-             FixedParamSpec("param_3", -1.)]
+    specs = [
+        FixedParamSpec("param_1", 0.0),
+        FixedParamSpec("param_2", 1.0),
+        FixedParamSpec("param_3", -1.0),
+    ]
     # Dictionary with fixed specs.
     specs_dict = {spec.name: spec.value for spec in specs}
     # Transform dict >> array >> dict

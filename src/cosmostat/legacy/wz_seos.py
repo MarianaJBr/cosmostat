@@ -1,9 +1,8 @@
 from functools import lru_cache
+
+import numpy as np
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
-import numpy as np
-
-
 
 # ==========   Fixed quantities for the calculation =============
 
@@ -14,13 +13,13 @@ exp = np.exp
 # ----------------------
 
 
-
 # ---------------------------------------------------------------------#
 # This part of the script contains the definition of a Steep EoS
 # for the DE component:
 # w(z) = w0 + (wi-w0) (z/zt)^q/(1+(z/zt)^q)
 # w(a) = w0 + wa * (1-a)^q/((a*zt)^q+(1-a)^q)
 # where wa = wi-w0
+
 
 @jit(nopython=True)
 # @lru_cache(maxsize=1024 * 1024)
@@ -50,7 +49,9 @@ def wxa(avalue, w_params):
         return wi
     if avalue == 1:
         return w0
-    return w0 + (wi - w0) * ((1 - avalue) ** q / ((avalue * zt) ** q + (1 - avalue) ** q))
+    return w0 + (wi - w0) * (
+        (1 - avalue) ** q / ((avalue * zt) ** q + (1 - avalue) ** q)
+    )
 
 
 @jit(nopython=True)
@@ -63,7 +64,6 @@ def f_DEz_integrand(zp, w_params):
 f_DEz_integrand_cf_sig = types.double(
     types.int32, types.CPointer(types.double)
 )
-
 
 
 @cfunc(f_DEz_integrand_cf_sig, cache=True)
@@ -108,18 +108,18 @@ def f_DEz_cc(z, w_params):
     :return:
     """
     w0, wi, q, zt = w_params
-    intDE, error = integrate.quad(f_DEz_integrand_cf_cc, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=w_params)
+    intDE, error = integrate.quad(
+        f_DEz_integrand_cf_cc, 0, z, epsabs=QUAD_EPSABS, args=w_params
+    )
     return np.exp(3 * intDE)
 
 
 @lru_cache(maxsize=1024 * 1024)
 def f_DEz_sp(z, w_params):
     """Integral of DE eos for Hubble function"""
-    intDE, error = integrate.quad(f_DEz_integrand, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=(w_params,))
+    intDE, error = integrate.quad(
+        f_DEz_integrand, 0, z, epsabs=QUAD_EPSABS, args=(w_params,)
+    )
     return np.exp(3 * intDE)
 
 
@@ -172,7 +172,8 @@ def f_DElna_integrand_cf(n, params_in_):
 
     w_params = w0, wi, q, zt
 
-    return  1 / ((1 + ((zt * exp(u)) / (1 - exp(u))) ** q))
+    return 1 / ((1 + ((zt * exp(u)) / (1 - exp(u))) ** q))
+
 
 # We have to wrap the ``ctypes`` implementation of the C-function
 # with a LowLevelCallable.
@@ -188,9 +189,9 @@ def f_DEa_sp(avalue, w_params):
     w0, wi, q, zt = w_params
     if avalue == 1:
         return 1
-    intDEa, error = integrate.quad(f_DElna_integrand, 0, np.log(avalue),
-                                   epsabs=QUAD_EPSABS,
-                                   args=(q, zt))
+    intDEa, error = integrate.quad(
+        f_DElna_integrand, 0, np.log(avalue), epsabs=QUAD_EPSABS, args=(q, zt)
+    )
     wa = wi - w0
     return 1 / (avalue ** (1 + w0)) * exp(-3 * wa * intDEa)
 
@@ -206,10 +207,15 @@ def f_DEa_cc(avalue, w_params):
     w0, wi, q, zt = w_params
     if avalue == 1:
         return 1
-    intDEa, error = integrate.quad(f_DElna_integrand_cf_cc, 0, np.log(avalue),
-                                   epsabs=QUAD_EPSABS,
-                                   args=(w_params,))
+    intDEa, error = integrate.quad(
+        f_DElna_integrand_cf_cc,
+        0,
+        np.log(avalue),
+        epsabs=QUAD_EPSABS,
+        args=(w_params,),
+    )
     wa = wi - w0
     return 1 / (avalue ** (1 + w0)) * exp(-3 * wa * intDEa)
+
 
 f_DEa = f_DEa_cc

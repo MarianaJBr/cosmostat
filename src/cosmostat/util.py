@@ -60,8 +60,9 @@ class DaskProgressBar(Callback):
     def _start_state(self, dsk, state):
         """"""
         total = sum(len(state[k]) for k in ["ready", "waiting", "running"])
-        progress = RichProgressBar(*columns, console=console,
-                                   auto_refresh=False)
+        progress = RichProgressBar(
+            *columns, console=console, auto_refresh=False
+        )
         self.rich_progress = progress
         self.main_task = progress.add_task("[red]Progress", total=total)
         progress.start()

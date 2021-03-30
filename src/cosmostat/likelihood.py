@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 from functools import partial
 
 import numpy as np
+
 from cosmostat.constants_units import COVMATCMB_3
 
 from .cosmology import Dataset, Model, Params, T_CosmologyFunc
@@ -13,37 +14,39 @@ T_LikelihoodTheoryFunc = T_CosmologyFunc
 T_LikelihoodFunc = t.Callable[[Params], float]
 
 
-def residuals_func_base(params: Params,
-                        data: np.ndarray,
-                        theory_func: T_CosmologyFunc):
+def residuals_func_base(
+    params: Params, data: np.ndarray, theory_func: T_CosmologyFunc
+):
     """Returns a vector/array with the residuals."""
     zi_data, obs_data, err_data = data.T
     th_func = np.array([theory_func(zi, params) for zi in zi_data])
     return (obs_data - th_func) / err_data
 
 
-def standard_chi_square_base(params: Params,
-                             residuals_func: t.Callable[[Params], np.ndarray]):
+def standard_chi_square_base(
+    params: Params, residuals_func: t.Callable[[Params], np.ndarray]
+):
     """Standard chi-square function."""
     return float(np.sum(residuals_func(params) ** 2))
 
 
-def y_vec_cmb_base(params: Params,
-                   r_cmb: T_CosmologyFunc,
-                   l_a: T_CosmologyFunc):
+def y_vec_cmb_base(
+    params: Params, r_cmb: T_CosmologyFunc, l_a: T_CosmologyFunc
+):
     """Standard chi-square function."""
     omegabh2 = params.omegabh2
-    y_cmb = np.array([
-        1.7382 - r_cmb(params),
-        301.63 - l_a(params),
-        0.02262 - omegabh2,
-        # 0.9741 - 0.97415
-    ])
+    y_cmb = np.array(
+        [
+            1.7382 - r_cmb(params),
+            301.63 - l_a(params),
+            0.02262 - omegabh2,
+            # 0.9741 - 0.97415
+        ]
+    )
     return y_cmb
 
 
-def cmb_chi_square_base(params: Params,
-                        y_cmb_func: T_CosmologyFunc):
+def cmb_chi_square_base(params: Params, y_cmb_func: T_CosmologyFunc):
     """Standard chi-square function."""
     y_cmb = y_cmb_func(params)
     covmat = COVMATCMB_3  # 4x4 matrix, including ns
@@ -55,6 +58,7 @@ def cmb_chi_square_base(params: Params,
 @dataclass
 class Likelihood:
     """Group likelihood functions for a specific model and dataset."""
+
     model: Model
     dataset: Dataset
 
@@ -70,9 +74,7 @@ class Likelihood:
         data = self.dataset.data
         functions_dict = asdict(self.model.functions)
         theory_func = functions_dict[self.dataset.cosmology_func]
-        return partial(residuals_func_base,
-                       data=data,
-                       theory_func=theory_func)
+        return partial(residuals_func_base, data=data, theory_func=theory_func)
 
     def _make_chi_square_func(self):
         """Build the chi-square function."""
@@ -83,8 +85,7 @@ class Likelihood:
     def _make_standard_chi_square_func(self):
         """Build the chi-square function."""
         residuals_func = self._make_residuals_func()
-        return partial(standard_chi_square_base,
-                       residuals_func=residuals_func)
+        return partial(standard_chi_square_base, residuals_func=residuals_func)
 
     def _make_y_vec_cmb_func(self):
         """"""

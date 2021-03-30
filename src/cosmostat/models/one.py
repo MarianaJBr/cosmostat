@@ -4,13 +4,14 @@ from dataclasses import asdict, dataclass
 from functools import lru_cache
 from math import exp
 
-from cosmostat.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
-from cosmostat.cosmology import (
-    Functions as BaseFunctions, Model, Params as ParamsBase,
-    T_CosmologyFunc
-)
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
+
+from cosmostat.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
+from cosmostat.cosmology import Functions as BaseFunctions
+from cosmostat.cosmology import Model
+from cosmostat.cosmology import Params as ParamsBase
+from cosmostat.cosmology import T_CosmologyFunc
 
 cw_directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -39,6 +40,7 @@ QUAD_EPS_ABS = 1.49e-8
 # ---------------------------------------------------------------------#
 class Params(ParamsBase, t.NamedTuple):
     """"""
+
     w0: float
     w1: float
     w2: float
@@ -81,7 +83,8 @@ def wz(z: float, params: Params):
     if w1 == 0:
         # return -1 - w0 * np.exp(-z) * (1 - z - w2) # direct substitution
         return -1 + exp(-z) * (
-            w0 * z + w2)  # re-definition of eos as explained above
+            w0 * z + w2
+        )  # re-definition of eos as explained above
     if w2 == 0:
         return -1 - w0 * exp(-z) * (z ** w1 - z)
     return -1 - w0 * exp(-z) * (z ** w1 - z - w2)
@@ -139,24 +142,32 @@ def f_dez_fast(z: float, params: Params) -> float:
     """
     int_de: float  # Type annotation.
     # noinspection PyTupleAssignmentBalance
-    int_de, error = integrate.quad(f_dez_integrand_cfunc, 0, z,
-                                   epsabs=QUAD_EPS_ABS,
-                                   # Note that args is equal to params.
-                                   #  This is necessary when the integrand
-                                   #  is a numba function.
-                                   args=params)
+    int_de, error = integrate.quad(
+        f_dez_integrand_cfunc,
+        0,
+        z,
+        epsabs=QUAD_EPS_ABS,
+        # Note that args is equal to params.
+        #  This is necessary when the integrand
+        #  is a numba function.
+        args=params,
+    )
     return exp(3 * int_de)
 
 
 def f_dez(z: float, params: Params):
     """Integral of DE eos for Hubble function"""
     # noinspection PyTupleAssignmentBalance
-    int_de, error = integrate.quad(f_dez_integrand, 0, z,
-                                   epsabs=QUAD_EPS_ABS,
-                                   # Note that args is equal to (params,).
-                                   #  This is the correct procedure when the
-                                   #  integrand is not a numba function.
-                                   args=(params,))
+    int_de, error = integrate.quad(
+        f_dez_integrand,
+        0,
+        z,
+        epsabs=QUAD_EPS_ABS,
+        # Note that args is equal to (params,).
+        #  This is the correct procedure when the
+        #  integrand is not a numba function.
+        args=(params,),
+    )
     return exp(3 * int_de)
 
 
@@ -180,6 +191,4 @@ functions = Functions()
 functions_dict = asdict(functions)
 
 # Singleton with the model definition.
-model = Model(name="ONE",
-              params_cls=Params,
-              functions=functions)
+model = Model(name="ONE", params_cls=Params, functions=functions)

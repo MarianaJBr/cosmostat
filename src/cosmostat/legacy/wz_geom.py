@@ -1,11 +1,11 @@
+import os
 from functools import lru_cache
+
+import numpy as np
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
-import numpy as np
-import os
 
 cw_directory = os.path.dirname(os.path.abspath(__file__))
-
 
 
 # ==========   Numerical integration quantities for the calculation ===========
@@ -47,15 +47,16 @@ def wz(z, w_params):
     return -1 + (w0 / (1 + (w1) * z ** (w3))) * np.cos(z + w2)
 
 
-
 @jit(nopython=True, cache=True)
 def f_DEz_integrand(zp, w_params):
     return (1 + wz(zp, w_params)) / (1 + zp)
+
 
 # Signature of the numba C function.
 f_DEz_integrand_cf_sig = types.double(
     types.int32, types.CPointer(types.double)
 )
+
 
 @cfunc(f_DEz_integrand_cf_sig, cache=True)
 def f_DEz_integrand_cf(n, params_in_):
@@ -86,6 +87,7 @@ def f_DEz_integrand_cf(n, params_in_):
 # with a LowLevelCallable.
 f_DEz_integrand_cf_cc = LowLevelCallable(f_DEz_integrand_cf.ctypes)
 
+
 @lru_cache(maxsize=1024 * 1024)
 def f_DEz_cc(z, w_params):
     """Integral of DE eos for Hubble function using a
@@ -95,19 +97,20 @@ def f_DEz_cc(z, w_params):
     :return:
     """
     w0, w1, w2, w3 = w_params
-    #w1, w2 = w_params
-    intDE, error = integrate.quad(f_DEz_integrand_cf_cc, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=w_params)
+    # w1, w2 = w_params
+    intDE, error = integrate.quad(
+        f_DEz_integrand_cf_cc, 0, z, epsabs=QUAD_EPSABS, args=w_params
+    )
     return np.exp(3 * intDE)
+
 
 @lru_cache(maxsize=1024 * 1024)
 def f_DEz_sp(z, w_params):
     """Integral of DE eos for Hubble function"""
-    intDE, error = integrate.quad(f_DEz_integrand, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=(w_params,))
+    intDE, error = integrate.quad(
+        f_DEz_integrand, 0, z, epsabs=QUAD_EPSABS, args=(w_params,)
+    )
     return np.exp(3 * intDE)
 
-f_DEz = f_DEz_cc
 
+f_DEz = f_DEz_cc

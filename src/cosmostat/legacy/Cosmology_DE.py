@@ -19,9 +19,10 @@
 from functools import lru_cache
 from math import sqrt
 
-from cosmostat.constants_units import *
 from numba import jit
 from scipy import integrate
+
+from cosmostat.constants_units import *
 
 # #we decide which equation of state to use:
 # either geometric eos, Steep eos, CPL, BA, JJE, GGZ, gus
@@ -54,9 +55,15 @@ def hubbleflat(z, w_params, cosmo_params):
 
     OmegaM = (omegabh2 + omegach2) / h ** 2
     # if OmegaM < 1:
-    hubblefunc = H0P * h * sqrt(
-        OMEGAR0 * (1 + z) ** 4 + OmegaM * (1 + z) ** 3 +
-        (1 - OMEGAR0 - OmegaM) * f_DEz(z, w_params))
+    hubblefunc = (
+        H0P
+        * h
+        * sqrt(
+            OMEGAR0 * (1 + z) ** 4
+            + OmegaM * (1 + z) ** 3
+            + (1 - OMEGAR0 - OmegaM) * f_DEz(z, w_params)
+        )
+    )
     # else:
 
     return hubblefunc
@@ -65,9 +72,9 @@ def hubbleflat(z, w_params, cosmo_params):
 # @jit
 @lru_cache(maxsize=1024 * 1024)
 def Ezflat(z, w_params, cosmo_params):
-    '''
+    """
     normalized Hubble function E(z) = H(z)/H0 for the flat Universe
-    '''
+    """
     h, omegabh2, omegach2 = cosmo_params
 
     Hz = hubbleflat(z, w_params, cosmo_params)
@@ -77,6 +84,7 @@ def Ezflat(z, w_params, cosmo_params):
 
 
 # ---------------   Density for DE fluid  -------------------------#####
+
 
 def rhode(z, w_params, cosmo_params):
     """
@@ -94,6 +102,7 @@ def rhode(z, w_params, cosmo_params):
 
 # ===============        For BAO scale          =================
 # ===============             BAO               =================
+
 
 @jit(nopython=True)
 def btog(z, h, omegabh2):
@@ -117,10 +126,13 @@ def r_s_integrand(z, w_params, cosmo_params):
 def r_s(zeval, w_params, cosmo_params):
     """Sound horizon at zeval either zdrag or zdec"""
     # noinspection PyTupleAssignmentBalance
-    r_sound, error = integrate.quad(r_s_integrand, zeval, inf,
-                                    epsabs=QUAD_EPSABS,
-                                    args=(w_params, cosmo_params)
-                                    )
+    r_sound, error = integrate.quad(
+        r_s_integrand,
+        zeval,
+        inf,
+        epsabs=QUAD_EPSABS,
+        args=(w_params, cosmo_params),
+    )
     return r_sound
 
 
@@ -138,9 +150,13 @@ def d_ang(z, w_params, cosmo_params):
     D_a(z) = c/(1+z)Int_0^z(dz'/H(z'))
     """
     # noinspection PyTupleAssignmentBalance
-    int, error = integrate.quad(d_ang_integrand, 0, z,
-                                epsabs=QUAD_EPSABS,
-                                args=(w_params, cosmo_params))
+    int, error = integrate.quad(
+        d_ang_integrand,
+        0,
+        z,
+        epsabs=QUAD_EPSABS,
+        args=(w_params, cosmo_params),
+    )
     return 1 / (1 + z) * int
 
 
@@ -153,10 +169,10 @@ def d_vz_integrand(zp, w_params, cosmo_params):
 def d_vz(z, w_params, cosmo_params):
     """Dilation scale for rbao size """
     # noinspection PyTupleAssignmentBalance
-    int2, error = integrate.quad(d_vz_integrand, 0, z,
-                                 epsabs=QUAD_EPSABS,
-                                 args=(w_params, cosmo_params))
-    int3 = (z / hubbleflat(z, w_params, cosmo_params)) ** (1. / 3)
+    int2, error = integrate.quad(
+        d_vz_integrand, 0, z, epsabs=QUAD_EPSABS, args=(w_params, cosmo_params)
+    )
+    int3 = (z / hubbleflat(z, w_params, cosmo_params)) ** (1.0 / 3)
     return int3 * int2 ** (2 / 3)
 
 
@@ -167,24 +183,29 @@ def Rcmb(w_params, cosmo_params):
     h, omegabh2, omegach2 = cosmo_params
     OmegaM = (omegabh2 + omegach2) / h ** 2
 
-    factor1 = np.sqrt(
-        OmegaM) * h * H0P  # important to keep H0p factor for units
+    factor1 = (
+        np.sqrt(OmegaM) * h * H0P
+    )  # important to keep H0p factor for units
     Dangzstar = d_ang(ZDEC, w_params, cosmo_params) * (1 + ZDEC)
     return factor1 * Dangzstar
 
 
 @lru_cache(maxsize=1024 * 1024, typed=True)
 def theta_star(w_params, cosmo_params):
-    """ Angular sound horizon at decoupling. Used to calculate l_A in Wang &
+    """Angular sound horizon at decoupling. Used to calculate l_A in Wang &
     Mukherjee (2007) 's matrix  for the CMB compressed likelihood.
     :param w_params: equation of state parameters in the chosen eos w(z)
     :param cosmo_params: h, omega_b, omega_c
     :return: Thetha(z_dec) = r_s(z_dec) / D_V(z_dec)
     """
     # noinspection PyTupleAssignmentBalance
-    int, error = integrate.quad(d_vz_integrand, 0, ZDEC,
-                                epsabs=QUAD_EPSABS,
-                                args=(w_params, cosmo_params))
+    int, error = integrate.quad(
+        d_vz_integrand,
+        0,
+        ZDEC,
+        epsabs=QUAD_EPSABS,
+        args=(w_params, cosmo_params),
+    )
     thethadec = r_s(ZDEC, w_params, cosmo_params) / int
     return thethadec
 
@@ -204,9 +225,7 @@ def l_A(w_params, cosmo_params):
 @lru_cache(maxsize=1024 * 1024, typed=True)
 def rBAO(z, w_params, cosmo_params):
     """BAO scale at redshit z """
-    rv = (
-        r_s(ZDRAG, w_params, cosmo_params) /
-        d_vz(z, w_params, cosmo_params))
+    rv = r_s(ZDRAG, w_params, cosmo_params) / d_vz(z, w_params, cosmo_params)
     if isinstance(rv, complex):
         raise ValueError
     return rv
@@ -219,22 +238,26 @@ def distance_SNe_integrand(z, w_params, cosmo_params):
 
 
 def distance_SNe(z, w_params, cosmo_params):
-    '''
+    """
     Luminosity distance for SNe data
     :return: (1+z) * Int_0^z dz E^-1(z; args) where E(z) = H(z)/H0
-    '''
+    """
     # noinspection PyTupleAssignmentBalance
-    int, err = integrate.quad(distance_SNe_integrand, 0, z,
-                              epsabs=QUAD_EPSABS,
-                              args=(w_params, cosmo_params))
+    int, err = integrate.quad(
+        distance_SNe_integrand,
+        0,
+        z,
+        epsabs=QUAD_EPSABS,
+        args=(w_params, cosmo_params),
+    )
     return (1 + z) * int
 
 
 def mu_SNe(z, w_params, cosmo_params):
-    '''
+    """
      Modulus distance for SNe data: 5*log10 of dist_lum(z)
     :return: 5*Log10(distance_SNe in Mpc) + 25
-    '''
+    """
     h, omegabh2, omegach2 = cosmo_params
     # OmegaM = (omegabh2 + omegach2) / h ** 2
     cosmo_params = h, omegabh2, omegach2

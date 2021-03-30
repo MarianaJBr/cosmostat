@@ -1,7 +1,8 @@
 from functools import lru_cache
+
+import numpy as np
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
-import numpy as np
 
 # ==========   Numerical integration quantities for the calculation ===========
 QUAD_EPSABS = 1.49e-8
@@ -23,8 +24,8 @@ quad = integrate.quad
 @jit(nopython=True, cache=True)
 def wz(z, w_params):
     """
-   w(z) = w0 + (w1 - w0) * z *(1+z)/(1+z^2)
-    Barboza - Alcaniz
+    w(z) = w0 + (w1 - w0) * z *(1+z)/(1+z^2)
+     Barboza - Alcaniz
     """
     w0, w1 = w_params
     wa = w1 - w0
@@ -36,13 +37,13 @@ def wz(z, w_params):
 
 
 def f_DEzBA(z, w_params):
-    '''
+    """
     Analytcical integral for the BA eos
     exp(3*Integral_o^z{[(1+w)/1+z]dz})  = (1+z^2)^{3/2*wa} * (1+z)^{3(1+w0)}
     :param z: redshift
     :param w_params: w0 and wa
     :return: exp(-3*wa*z/(1+z)) * (1+z)^{3(1+w0+wa)}
-    '''
+    """
     w0, w1 = w_params
     wa = w1 - w0
 
@@ -53,9 +54,7 @@ def f_DEzBA(z, w_params):
     factor1 = (1 + z ** 2) ** (3 * wa / 2)
     factor2 = (1 + z) ** (3 * (1 + w0))
 
-
     return factor1 * factor2
 
 
 f_DEz = f_DEzBA
-

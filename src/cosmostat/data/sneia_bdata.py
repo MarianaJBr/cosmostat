@@ -19,12 +19,12 @@ cw_directory = os.path.dirname(os.path.abspath(__file__))
 # print(file_path)
 
 # sys.path.insert(0, os.path.join(file_path, '..'))
-sne_type = ['JLA', 'Union']
+sne_type = ["JLA", "Union"]
 # TODO: add the 2 datasets in one file and choose via an If loop.
 # TODO: extend to chi2_likelihood script in the SNe routine
 # TODO: if SNeType == JLA then use file such, else use the Union2.1
 # TODO: if SNeType == JLA then use Error as is, else use Error**2
-filename = os.path.join(cw_directory, 'jla_mub_complete.txt')
+filename = os.path.join(cw_directory, "jla_mub_complete.txt")
 sne_file = np.loadtxt(filename, usecols=(1, 2, 3))
 
 REDSHIFTS_SNE = sne_file[:, 0]

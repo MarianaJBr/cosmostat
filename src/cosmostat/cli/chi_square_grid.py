@@ -4,22 +4,6 @@ import typing as t
 import click
 import h5py
 import numpy as np
-from cosmostat.chi_square import (
-    DaskGridExecutor, FixedParamSpec, Grid, GridIterator, ParamPartitionSpec,
-    has_grid
-)
-from cosmostat.cosmology import (
-    get_dataset_join, get_model, registered_dataset_joins,
-    registered_models
-)
-from cosmostat.exceptions import CLIError
-from cosmostat.legacy.chi_square import (
-    Grid as LegacyGrid, PoolGridExecutor
-)
-from cosmostat.util import (
-    DaskProgressBar, RichProgressBar, columns,
-    console
-)
 from click import BadParameter
 from rich import box
 from rich.padding import Padding
@@ -28,6 +12,15 @@ from rich.table import Table
 from rich.text import Text
 # Accepted parameter partition scales.
 from toolz import groupby
+
+from cosmostat.chi_square import (DaskGridExecutor, FixedParamSpec, Grid,
+                                  GridIterator, ParamPartitionSpec, has_grid)
+from cosmostat.cosmology import (get_dataset_join, get_model,
+                                 registered_dataset_joins, registered_models)
+from cosmostat.exceptions import CLIError
+from cosmostat.legacy.chi_square import Grid as LegacyGrid
+from cosmostat.legacy.chi_square import PoolGridExecutor
+from cosmostat.util import DaskProgressBar, RichProgressBar, columns, console
 
 VALID_PARTITION_SCALES = ["linear", "log", "geom"]
 
@@ -46,46 +39,56 @@ def _get_partition_spec(name: str, string: str):
             try:
                 value = float(value)
             except ValueError:
-                err_msg = f"invalid value '{value}' for parameter " \
-                          f"'{name}'"
+                err_msg = f"invalid value '{value}' for parameter " f"'{name}'"
                 raise BadParameter(err_msg)
             # Return a fixed parameter spec.
-            return value,
+            return (value,)
         else:
-            err_msg = f"invalid partition '{string}' for parameter " \
-                      f"'{name}'"
+            err_msg = (
+                f"invalid partition '{string}' for parameter " f"'{name}'"
+            )
             raise BadParameter(err_msg)
     lower, upper, num_parts = partition_spec
     # Lower limit.
     try:
         lower = float(lower)
     except ValueError:
-        err_msg = f"invalid lower bound '{lower}' for " \
-                  f"parameter '{name}' partition"
+        err_msg = (
+            f"invalid lower bound '{lower}' for "
+            f"parameter '{name}' partition"
+        )
         raise BadParameter(err_msg)
     # Upper limit.
     try:
         upper = float(upper)
     except ValueError:
-        err_msg = f"invalid upper bound '{upper}' for " \
-                  f"parameter '{name}' partition"
+        err_msg = (
+            f"invalid upper bound '{upper}' for "
+            f"parameter '{name}' partition"
+        )
         raise BadParameter(err_msg)
     # Number of parts of partition.
     if not num_parts:
-        err_msg = f"the number of elements for parameter '{name}' partition " \
-                  f"is required"
+        err_msg = (
+            f"the number of elements for parameter '{name}' partition "
+            f"is required"
+        )
         raise BadParameter(err_msg)
     else:
         try:
             num_parts = int(num_parts)
             if num_parts < 1:
-                err_msg = f"'{num_parts}' is not a valid number of elements " \
-                          f"for parameter '{name}' partition; must be " \
-                          f"greater or equal than one"
+                err_msg = (
+                    f"'{num_parts}' is not a valid number of elements "
+                    f"for parameter '{name}' partition; must be "
+                    f"greater or equal than one"
+                )
                 raise BadParameter(err_msg)
         except ValueError:
-            err_msg = f"'{num_parts}' is not a valid number of elements for " \
-                      f"parameter '{name}' partition"
+            err_msg = (
+                f"'{num_parts}' is not a valid number of elements for "
+                f"parameter '{name}' partition"
+            )
             raise BadParameter(err_msg)
     return lower, upper, num_parts
 
@@ -105,20 +108,26 @@ def _get_partition_scale(name: str, string: str):
             if base < 2:
                 raise ValueError
         except ValueError:
-            err_msg = f"invalid base '{base}' for parameter " \
-                      f"'{name}' partition scale; must be a integer " \
-                      f"greater than 2"
+            err_msg = (
+                f"invalid base '{base}' for parameter "
+                f"'{name}' partition scale; must be a integer "
+                f"greater than 2"
+            )
             raise BadParameter(err_msg)
         # Watch out with geometric scales...
         if scale == "geom":
-            err_msg = f"base '{base}' is not allowed for a geometric scale " \
-                      f"in parameter '{name}' partition scale"
+            err_msg = (
+                f"base '{base}' is not allowed for a geometric scale "
+                f"in parameter '{name}' partition scale"
+            )
             raise BadParameter(err_msg)
     # Verify that the scale is valid.
     if scale not in VALID_PARTITION_SCALES:
-        err_msg = f"invalid scale '{scale}' for parameter " \
-                  f"'{name}' partition; must be one of " \
-                  f"{VALID_PARTITION_SCALES}"
+        err_msg = (
+            f"invalid scale '{scale}' for parameter "
+            f"'{name}' partition; must be one of "
+            f"{VALID_PARTITION_SCALES}"
+        )
         raise BadParameter(err_msg)
     return scale, base
 
@@ -133,27 +142,33 @@ def validate_param(param: T_CLIParam):
             string = value_parts[0]
             partition_spec = _get_partition_spec(name, string)
             try:
-                value, = partition_spec
+                (value,) = partition_spec
                 return FixedParamSpec(name, value)
             except ValueError:
                 lower, upper, num_parts = partition_spec
-                return ParamPartitionSpec.from_range_spec(name, lower, upper,
-                                                          num_parts)
+                return ParamPartitionSpec.from_range_spec(
+                    name, lower, upper, num_parts
+                )
         else:
-            err_msg = f"invalid partition spec '{value_str}' for parameter " \
-                      f"'{name}'"
+            err_msg = (
+                f"invalid partition spec '{value_str}' for parameter "
+                f"'{name}'"
+            )
             raise BadParameter(err_msg)
     partition_str, scale_str = value_parts
     partition_spec = _get_partition_spec(name, partition_str)
     lower, upper, num_parts = partition_spec
     scale, base = _get_partition_scale(name, scale_str)
     if (lower < 0 or upper < 0) and (scale in ["geom"]):
-        err_msg = f"can not mix negative boundaries and geom scales " \
-                  f"in parameter '{name}' spec " \
-                  f"'{lower}:{upper}:{num_parts}@{scale}'"
+        err_msg = (
+            f"can not mix negative boundaries and geom scales "
+            f"in parameter '{name}' spec "
+            f"'{lower}:{upper}:{num_parts}@{scale}'"
+        )
         raise BadParameter(err_msg)
-    return ParamPartitionSpec.from_range_spec(name, lower, upper, num_parts,
-                                              scale=scale, base=base)
+    return ParamPartitionSpec.from_range_spec(
+        name, lower, upper, num_parts, scale=scale, base=base
+    )
 
 
 def validate_params(ctx, param, values: T_CLIParams):
@@ -167,53 +182,69 @@ _datasets = registered_dataset_joins()
 
 
 @click.command()
-@click.argument("eos_model",
-                type=click.Choice(_models),
-                metavar="EOS_MODEL")
-@click.argument("datasets",
-                type=click.Choice(_datasets),
-                metavar="DATASETS")
-@click.option("--param",
-              type=(str, str),
-              multiple=True,
-              default=None,
-              callback=validate_params,
-              help="Defines a partition for a parameter values. "
-                   "The first text element indicates "
-                   "the parameter name, and it is dependent on the equation "
-                   "of stated used in the chi-square fitting process. "
-                   "On the one "
-                   "hand, as a single floating-point number, the second text "
-                   "element fixes the parameter value during the minimization. "
-                   "On the other hand, as a string with format 'lower:upper' "
-                   "(where 'lower' and 'upper' are floating-point numbers, "
-                   "including 'inf' and '-inf'), it defines the interval "
-                   "bounds where the parameter will be varied. If 'lower' or "
-                   "'upper' are omitted (but not the middle colon), then the "
-                   "lower bound becomes '-inf', while the upper bound becomes "
-                   "'inf'. If both 'lower' and 'upper' are equal, the "
-                   "parameter is kept fixed during the minimization.")
-@click.option("-o", "--output",
-              type=click.Path(exists=False),
-              required=True,
-              help="HDF5 file where the fitting result will be saved.")
-@click.option("-g", "--hdf5-group",
-              type=str,
-              default="/",
-              help="Group where the fitting result will be saved. If "
-                   "omitted, the result is saved in the root group.")
-@click.option("-f", "--force-output",
-              is_flag=True,
-              default=False,
-              help="If the output file already contains a best-fit result, "
-                   "replace it with the new result.")
-@click.option("-l", "--legacy",
-              is_flag=True,
-              default=False,
-              help="Evaluate the grid using the legacy code")
-def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
-                    output: str, hdf5_group: str, force_output: bool,
-                    legacy: bool):
+@click.argument("eos_model", type=click.Choice(_models), metavar="EOS_MODEL")
+@click.argument("datasets", type=click.Choice(_datasets), metavar="DATASETS")
+@click.option(
+    "--param",
+    type=(str, str),
+    multiple=True,
+    default=None,
+    callback=validate_params,
+    help="Defines a partition for a parameter values. "
+    "The first text element indicates "
+    "the parameter name, and it is dependent on the equation "
+    "of stated used in the chi-square fitting process. "
+    "On the one "
+    "hand, as a single floating-point number, the second text "
+    "element fixes the parameter value during the minimization. "
+    "On the other hand, as a string with format 'lower:upper' "
+    "(where 'lower' and 'upper' are floating-point numbers, "
+    "including 'inf' and '-inf'), it defines the interval "
+    "bounds where the parameter will be varied. If 'lower' or "
+    "'upper' are omitted (but not the middle colon), then the "
+    "lower bound becomes '-inf', while the upper bound becomes "
+    "'inf'. If both 'lower' and 'upper' are equal, the "
+    "parameter is kept fixed during the minimization.",
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(exists=False),
+    required=True,
+    help="HDF5 file where the fitting result will be saved.",
+)
+@click.option(
+    "-g",
+    "--hdf5-group",
+    type=str,
+    default="/",
+    help="Group where the fitting result will be saved. If "
+    "omitted, the result is saved in the root group.",
+)
+@click.option(
+    "-f",
+    "--force-output",
+    is_flag=True,
+    default=False,
+    help="If the output file already contains a best-fit result, "
+    "replace it with the new result.",
+)
+@click.option(
+    "-l",
+    "--legacy",
+    is_flag=True,
+    default=False,
+    help="Evaluate the grid using the legacy code",
+)
+def chi_square_grid(
+    eos_model: str,
+    datasets: str,
+    param: T_GridParamSpecs,
+    output: str,
+    hdf5_group: str,
+    force_output: bool,
+    legacy: bool,
+):
     """Evaluate the chi-square over a grid according to best-fit in FILE.
 
     The chi-square is evaluated for the same model, dataset, and best-fit
@@ -227,8 +258,9 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     datasets = get_dataset_join(datasets)
     params_cls = _eos_model.params_cls
     fixed_specs: t.List[FixedParamSpec] = param.get(FixedParamSpec, [])
-    partition_specs: t.List[ParamPartitionSpec] = \
-        param.get(ParamPartitionSpec, [])
+    partition_specs: t.List[ParamPartitionSpec] = param.get(
+        ParamPartitionSpec, []
+    )
 
     # Parameters defined for the current model/eos.
     param_names = list(getattr(params_cls, "_fields"))
@@ -237,18 +269,24 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     fixed_names_set = {spec.name for spec in fixed_specs}
     partition_names_set = {spec.name for spec in partition_specs}
     spec_names_set = fixed_names_set | partition_names_set
-    required_names = [name for name in param_names if
-                      name not in names_with_defaults]
-    missing_names = [name for name in required_names if
-                     name not in spec_names_set]
-    unknown_names = [name for name in spec_names_set if name not in param_names]
+    required_names = [
+        name for name in param_names if name not in names_with_defaults
+    ]
+    missing_names = [
+        name for name in required_names if name not in spec_names_set
+    ]
+    unknown_names = [
+        name for name in spec_names_set if name not in param_names
+    ]
 
     # Raise error if we have both missing names and unknown names.
     if missing_names and unknown_names:
-        err_msg = f"the required parameters {missing_names} " \
-                  f"were not specified, while the supplied parameters " \
-                  f"{unknown_names} are unknown; the model only accepts " \
-                  f"the following parameters: {param_names}"
+        err_msg = (
+            f"the required parameters {missing_names} "
+            f"were not specified, while the supplied parameters "
+            f"{unknown_names} are unknown; the model only accepts "
+            f"the following parameters: {param_names}"
+        )
         raise CLIError(f"{err_msg}")
     # Raise error if there are missing names.
     elif missing_names:
@@ -256,16 +294,19 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
         raise CLIError(f"{err_msg}")
     # Raise error if there are unknown names.
     elif unknown_names:
-        err_msg = f"unknown parameters {unknown_names}. The model accepts " \
-                  f"the following parameters: {param_names}"
+        err_msg = (
+            f"unknown parameters {unknown_names}. The model accepts "
+            f"the following parameters: {param_names}"
+        )
         raise CLIError(f"{err_msg}")
 
     # Get all parameters that are fixed by default.
     fixed_names_set = (
-        names_with_defaults - partition_names_set - fixed_names_set)
-    fixed_specs.extend([
-        FixedParamSpec(name, defaults_dict[name]) for name in fixed_names_set
-    ])
+        names_with_defaults - partition_names_set - fixed_names_set
+    )
+    fixed_specs.extend(
+        [FixedParamSpec(name, defaults_dict[name]) for name in fixed_names_set]
+    )
 
     # Perform checks.
     if out_file.exists():
@@ -276,8 +317,9 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
                 base_group = h5f.get(base_group_name, None)
                 if base_group is not None:
                     if has_grid(base_group):
-                        message = f"a grid result already exists in " \
-                                  f"{base_group}"
+                        message = (
+                            f"a grid result already exists in " f"{base_group}"
+                        )
                         raise CLIError(message)
     else:
         # Create the parent directories.
@@ -328,8 +370,10 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     console.print(title_panel, justify="center")
 
     # Show execution summary.
-    console.print(Padding("[underline magenta3]Execution Summary[/]",
-                          (1, 0, 1, 0)), justify="center")
+    console.print(
+        Padding("[underline magenta3]Execution Summary[/]", (1, 0, 1, 0)),
+        justify="center",
+    )
     model_text = f"Model: [red bold]{eos_model}[/]"
     console.print(Padding(model_text, (1, 0, 0, 0)), justify="center")
     dataset_text = f"Dataset(s): [red bold]{datasets.label}[/]"
@@ -340,34 +384,45 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     console.print(Padding(hdf5_group_text, (0, 0, 1, 0)), justify="center")
 
     # Show fixed parameters.
-    console.print(Padding(f"[magenta3 underline bold]Fixed Parameters[/]",
-                          (1, 0, 0, 0)), justify="center")
+    console.print(
+        Padding(f"[magenta3 underline bold]Fixed Parameters[/]", (1, 0, 0, 0)),
+        justify="center",
+    )
     console.print(Padding(fixed_params_table, (0, 5, 0, 5)))
 
     # Show partition parameters.
-    console.print(Padding(f"[magenta3 underline bold]Partition Parameters[/]",
-                          (1, 0, 0, 0)), justify="center")
+    console.print(
+        Padding(
+            f"[magenta3 underline bold]Partition Parameters[/]", (1, 0, 0, 0)
+        ),
+        justify="center",
+    )
     console.print(Padding(grid_specs_table, (0, 5, 0, 5)))
 
     # Show progress.
-    console.print(Padding("Grid Evaluation Progress...", (1, 0, 1, 0)),
-                  justify="center")
+    console.print(
+        Padding("Grid Evaluation Progress...", (1, 0, 1, 0)), justify="center"
+    )
 
     # Grid object.
-    grid_iter = GridIterator(eos_model=_eos_model,
-                             datasets=datasets,
-                             fixed_params=fixed_specs,
-                             param_partitions=partition_specs)
+    grid_iter = GridIterator(
+        eos_model=_eos_model,
+        datasets=datasets,
+        fixed_params=fixed_specs,
+        param_partitions=partition_specs,
+    )
     if not legacy:
         grid_exec = DaskGridExecutor()
         with DaskProgressBar():
             chi_square_data = grid_exec.map(grid_iter)
         grid_result = Grid.from_data(chi_square_data, grid_iter)
     else:
-        progress_bar = RichProgressBar(*columns,
-                                       console=console,
-                                       auto_refresh=False)
-        grid_task = progress_bar.add_task("[red]Progress", total=grid_iter.size)
+        progress_bar = RichProgressBar(
+            *columns, console=console, auto_refresh=False
+        )
+        grid_task = progress_bar.add_task(
+            "[red]Progress", total=grid_iter.size
+        )
         with progress_bar:
             chi_square_data = []
             grid_exec_map = PoolGridExecutor().map(grid_iter)
@@ -380,5 +435,9 @@ def chi_square_grid(eos_model: str, datasets: str, param: T_GridParamSpecs,
     with h5py.File(out_file, file_mode) as h5f:
         grid_result.save(h5f, base_group_name, force_output)
 
-    console.print(Padding(f"[underline bold green]Grid evaluation complete[/]",
-                          pad=(1, 0)), justify="center")
+    console.print(
+        Padding(
+            f"[underline bold green]Grid evaluation complete[/]", pad=(1, 0)
+        ),
+        justify="center",
+    )

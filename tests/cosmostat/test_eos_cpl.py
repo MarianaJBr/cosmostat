@@ -6,6 +6,7 @@ params = Params(0, 0.3)
 
 # TODO: Improve tests.
 
+
 def test_wz():
     """"""
     wz = model.functions.wz

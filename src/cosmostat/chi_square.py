@@ -7,14 +7,10 @@ import h5py
 import numpy as np
 from dask import bag
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import (
-    OptimizeResult, differential_evolution,
-    minimize_scalar, newton
-)
+from scipy.optimize import (OptimizeResult, differential_evolution,
+                            minimize_scalar, newton)
 
-from .cosmology import (
-    DatasetJoin, Model, Params, get_model
-)
+from .cosmology import DatasetJoin, Model, Params, get_model
 from .likelihood import Likelihood, T_LikelihoodFunc
 
 # Name of the HDF5 groups used to store best-fit and grid results.
@@ -32,6 +28,7 @@ T_OptimizationInfo = t.Union[OptimizeResult, t.Mapping[str, t.Any], dict]
 @dataclass
 class FreeParamSpec:
     """Description of an optimization parameter."""
+
     name: str
     lower_bound: float
     upper_bound: float
@@ -45,16 +42,20 @@ class FreeParamSpec:
 @dataclass
 class ParamPartitionSpec:
     """Describe a parameter partition."""
+
     name: str
     data: np.ndarray
 
     @classmethod
-    def from_range_spec(cls, name: str,
-                        lower_bound: float,
-                        upper_bound: float,
-                        num_parts: int,
-                        scale: str = "linear",
-                        base: int = None):
+    def from_range_spec(
+        cls,
+        name: str,
+        lower_bound: float,
+        upper_bound: float,
+        num_parts: int,
+        scale: str = "linear",
+        base: int = None,
+    ):
         """Create a partition spec from a range specification."""
         lower = lower_bound
         upper = upper_bound
@@ -74,6 +75,7 @@ class ParamPartitionSpec:
 @dataclass
 class FixedParamSpec:
     """"""
+
     name: str
     value: float
 
@@ -85,6 +87,7 @@ T_FixedParamSpecs = t.List[FixedParamSpec]
 @dataclass
 class BestFit:
     """Represent the result of a SciPy optimization routine."""
+
     eos_model: Model
     datasets: DatasetJoin
     params: Params
@@ -97,8 +100,9 @@ class BestFit:
     bic: float = None
     optimization_info: T_OptimizationInfo = None
 
-    def save(self, file: h5py.File, group_name: str = None,
-             force: bool = False):
+    def save(
+        self, file: h5py.File, group_name: str = None, force: bool = False
+    ):
         """Save a best-fit result to an HDF5 file."""
         if group_name is None or group_name == ROOT_GROUP_NAME:
             base_group = file[ROOT_GROUP_NAME]
@@ -117,8 +121,7 @@ class BestFit:
         group.attrs["datasets"] = self.datasets.name
         group.attrs["datasets_label"] = self.datasets.label
         group.attrs["params"] = best_fit_params_as_array(params)
-        group.attrs["free_params"] = list(
-            map(free_spec_as_array, free_params))
+        group.attrs["free_params"] = list(map(free_spec_as_array, free_params))
         group.attrs["eos_today"] = self.eos_today
         group.attrs["chi_square_min"] = self.chi_square_min
         group.attrs["chi_square_reduced"] = self.chi_square_reduced
@@ -137,8 +140,9 @@ class BestFit:
     @classmethod
     def load(cls, file: h5py.File, group_name: str = None):
         """Load a best-fit result from an HDF5 file."""
-        base_group: h5py.Group = file["/"] if group_name is None else \
-            file[group_name]
+        base_group: h5py.Group = (
+            file["/"] if group_name is None else file[group_name]
+        )
         group = base_group[BEST_FIT_GROUP_LABEL]
 
         # Load best-fit result attributes.
@@ -164,16 +168,19 @@ class BestFit:
             opt_info = cls.load_opt_info(opt_info_group)
         else:
             opt_info = None
-        return cls(eos_model=model,
-                   datasets=datasets,
-                   params=params,
-                   free_params=free_params,
-                   eos_today=eos_today,
-                   chi_square_min=chi_square_min,
-                   chi_square_reduced=chi_square_reduced,
-                   omega_m=omega_m,
-                   aic=aic, bic=bic,
-                   optimization_info=opt_info)
+        return cls(
+            eos_model=model,
+            datasets=datasets,
+            params=params,
+            free_params=free_params,
+            eos_today=eos_today,
+            chi_square_min=chi_square_min,
+            chi_square_reduced=chi_square_reduced,
+            omega_m=omega_m,
+            aic=aic,
+            bic=bic,
+            optimization_info=opt_info,
+        )
 
     @staticmethod
     def save_opt_info(group: h5py.Group, opt_info: T_OptimizationInfo):
@@ -220,31 +227,33 @@ def _is_none(_obj: t.Any):
 
 
 # Define the dtype we use to save the best-fit params in an HDF5 file.
-_best_fit_params_dtype = np.dtype([
-    ("name", h5py.string_dtype()), ("value", "f8")
-])
+_best_fit_params_dtype = np.dtype(
+    [("name", h5py.string_dtype()), ("value", "f8")]
+)
 
 # Define the dtype we use to save a fixed param in an HDF5 file.
-_fixed_param_dtype = np.dtype([
-    ("name", h5py.string_dtype()), ("value", "f8")
-])
+_fixed_param_dtype = np.dtype([("name", h5py.string_dtype()), ("value", "f8")])
 
 # Define the dtype we use to save a free param in an HDF5 file.
-_free_param_dtype = np.dtype([
-    ("name", h5py.string_dtype()),
-    ("lower_bound", "f8"),
-    ("upper_bound", "f8")
-])
+_free_param_dtype = np.dtype(
+    [
+        ("name", h5py.string_dtype()),
+        ("lower_bound", "f8"),
+        ("upper_bound", "f8"),
+    ]
+)
 
 # Define the dtype we use to save a grid param in an HDF5 file.
-_grid_param_dtype = np.dtype([
-    ("name", h5py.string_dtype()),
-    ("lower_bound", "f8"),
-    ("upper_bound", "f8"),
-    ("num_parts", "i4"),
-    ("scale", h5py.string_dtype()),
-    ("base", "i4"),
-])
+_grid_param_dtype = np.dtype(
+    [
+        ("name", h5py.string_dtype()),
+        ("lower_bound", "f8"),
+        ("upper_bound", "f8"),
+        ("num_parts", "i4"),
+        ("scale", h5py.string_dtype()),
+        ("base", "i4"),
+    ]
+)
 
 
 def best_fit_params_as_array(param: Params):
@@ -277,14 +286,19 @@ def free_spec_as_array(spec: FreeParamSpec):
 
 def free_spec_from_array(data: np.ndarray):
     """Retrieve a free parameter spec from a numpy array."""
-    return FreeParamSpec(name=data["name"], lower_bound=data["lower_bound"],
-                         upper_bound=data["upper_bound"])
+    return FreeParamSpec(
+        name=data["name"],
+        lower_bound=data["lower_bound"],
+        upper_bound=data["upper_bound"],
+    )
 
 
-def make_objective_func(chi_square_funcs: t.List[T_LikelihoodFunc],
-                        params_cls: t.Type[Params],
-                        fixed_specs: t.List[FixedParamSpec],
-                        free_specs: t.List[FreeParamSpec]):
+def make_objective_func(
+    chi_square_funcs: t.List[T_LikelihoodFunc],
+    params_cls: t.Type[Params],
+    fixed_specs: t.List[FixedParamSpec],
+    free_specs: t.List[FreeParamSpec],
+):
     """Create the objective function to minimize."""
     fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
     var_names = [spec.name for spec in free_specs]
@@ -310,8 +324,9 @@ def has_best_fit(group: h5py.Group):
 T_BestFitFinderCallback = t.Callable[[Params, float], float]
 
 
-def chi_square_base(params: Params,
-                    chi_square_funcs: t.List[T_LikelihoodFunc]):
+def chi_square_base(
+    params: Params, chi_square_funcs: t.List[T_LikelihoodFunc]
+):
     """Total chi-square function."""
     try:
         return sum((func(params) for func in chi_square_funcs))
@@ -319,11 +334,13 @@ def chi_square_base(params: Params,
         return np.inf
 
 
-def objective_func_base(x: t.Tuple[float, ...],
-                        params_cls: t.Type[Params],
-                        chi_square_func: T_LikelihoodFunc,
-                        fixed_specs: T_FixedParamSpecs,
-                        free_specs: t.List[FreeParamSpec]):
+def objective_func_base(
+    x: t.Tuple[float, ...],
+    params_cls: t.Type[Params],
+    chi_square_func: T_LikelihoodFunc,
+    fixed_specs: T_FixedParamSpecs,
+    free_specs: t.List[FreeParamSpec],
+):
     """Objective function.
 
     Evaluates the chi-square function.
@@ -336,13 +353,16 @@ def objective_func_base(x: t.Tuple[float, ...],
     return chi_square_func(params)
 
 
-def callback_base(x: t.Tuple[float, ...],
-                  convergence: float = None, *,
-                  params_cls: t.Type[Params],
-                  chi_square_func: T_LikelihoodFunc,
-                  fixed_specs: T_FixedParamSpecs,
-                  free_specs: t.List[FreeParamSpec],
-                  callback_func: T_BestFitFinderCallback):
+def callback_base(
+    x: t.Tuple[float, ...],
+    convergence: float = None,
+    *,
+    params_cls: t.Type[Params],
+    chi_square_func: T_LikelihoodFunc,
+    fixed_specs: T_FixedParamSpecs,
+    free_specs: t.List[FreeParamSpec],
+    callback_func: T_BestFitFinderCallback
+):
     """Callback for SciPy optimizer."""
     fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}
     var_names = [spec.name for spec in free_specs]
@@ -357,6 +377,7 @@ def callback_base(x: t.Tuple[float, ...],
 @dataclass
 class BestFitFinder(metaclass=ABCMeta):
     """Find the best chi-square fitting params of a model to certain data."""
+
     eos_model: Model
     datasets: DatasetJoin
     fixed_specs: T_FixedParamSpecs
@@ -364,15 +385,13 @@ class BestFitFinder(metaclass=ABCMeta):
     callback: t.Callable = T_BestFitFinderCallback
 
     # Private attributes.
-    chi_square: T_LikelihoodFunc = field(default=None,
-                                         init=False,
-                                         repr=False)
-    objective_func: T_LikelihoodFunc = field(default=None,
-                                             init=False,
-                                             repr=False)
-    callback_func: T_BestFitFinderCallback = field(default=None,
-                                                   init=False,
-                                                   repr=False)
+    chi_square: T_LikelihoodFunc = field(default=None, init=False, repr=False)
+    objective_func: T_LikelihoodFunc = field(
+        default=None, init=False, repr=False
+    )
+    callback_func: T_BestFitFinderCallback = field(
+        default=None, init=False, repr=False
+    )
 
     def __post_init__(self):
         """"""
@@ -423,8 +442,9 @@ class BestFitFinder(metaclass=ABCMeta):
         free_spec_names = [spec.name for spec in free_specs]
         # Extract the best-fit parameters from the result.
         fixed_specs_dict = {spec.name: spec.value for spec in self.fixed_specs}
-        optimize_best_fit_params_dict = \
-            dict(zip(free_spec_names, optimization_info["x"]))
+        optimize_best_fit_params_dict = dict(
+            zip(free_spec_names, optimization_info["x"])
+        )
         fixed_specs_dict.update(optimize_best_fit_params_dict)
         params = self.eos_model.params_cls(**fixed_specs_dict)
 
@@ -445,16 +465,19 @@ class BestFitFinder(metaclass=ABCMeta):
         omega_m = (omegabh2 + omegach2) / h ** 2
         bic = chi_square_min + num_free_params * np.log(num_data)
         aic = chi_square_min + 2 * num_data
-        result = BestFit(eos_model=eos_model,
-                         datasets=datasets,
-                         params=params,
-                         free_params=free_specs,
-                         eos_today=eos_today,
-                         chi_square_min=chi_square_min,
-                         chi_square_reduced=chi_square_reduced,
-                         omega_m=omega_m,
-                         aic=aic, bic=bic,
-                         optimization_info=optimization_info)
+        result = BestFit(
+            eos_model=eos_model,
+            datasets=datasets,
+            params=params,
+            free_params=free_specs,
+            eos_today=eos_today,
+            chi_square_min=chi_square_min,
+            chi_square_reduced=chi_square_reduced,
+            omega_m=omega_m,
+            aic=aic,
+            bic=bic,
+            optimization_info=optimization_info,
+        )
         return result
 
 
@@ -468,11 +491,13 @@ class DEBestFitFinder(BestFitFinder):
         fixed_specs = self.fixed_specs
         free_specs = self.free_specs
         chi_square_func = self.chi_square
-        return partial(objective_func_base,
-                       params_cls=params_cls,
-                       chi_square_func=chi_square_func,
-                       fixed_specs=fixed_specs,
-                       free_specs=free_specs)
+        return partial(
+            objective_func_base,
+            params_cls=params_cls,
+            chi_square_func=chi_square_func,
+            fixed_specs=fixed_specs,
+            free_specs=free_specs,
+        )
 
     def _make_callback_func(self) -> t.Optional[T_LikelihoodFunc]:
         """"""
@@ -485,25 +510,28 @@ class DEBestFitFinder(BestFitFinder):
         if _callback_func is None:
             return None
 
-        return partial(callback_base,
-                       params_cls=params_cls,
-                       chi_square_func=chi_square_func,
-                       fixed_specs=fixed_specs,
-                       free_specs=free_specs,
-                       callback_func=_callback_func)
+        return partial(
+            callback_base,
+            params_cls=params_cls,
+            chi_square_func=chi_square_func,
+            fixed_specs=fixed_specs,
+            free_specs=free_specs,
+            callback_func=_callback_func,
+        )
 
     def _make_chi_square_func(self) -> T_LikelihoodFunc:
         """Get the chi-square function."""
-        return partial(chi_square_base,
-                       chi_square_funcs=self.chi_square_funcs)
+        return partial(chi_square_base, chi_square_funcs=self.chi_square_funcs)
 
     def _exec(self) -> T_OptimizationInfo:
         """Optimization routine."""
         # Start the optimization procedure.
-        return differential_evolution(self.objective_func,
-                                      bounds=self.free_specs_bounds,
-                                      callback=self.callback_func,
-                                      polish=True)
+        return differential_evolution(
+            self.objective_func,
+            bounds=self.free_specs_bounds,
+            callback=self.callback_func,
+            polish=True,
+        )
 
 
 def has_grid(group: h5py.Group):
@@ -518,6 +546,7 @@ T_GridExecutorCallback = t.Callable[[Params], float]
 @dataclass
 class GridIterator(t.Iterable):
     """Iterates over a grid."""
+
     eos_model: Model
     datasets: DatasetJoin
     fixed_params: T_FixedParamSpecs
@@ -546,8 +575,10 @@ class GridIterator(t.Iterable):
         # way we do not allocate memory for all the combinations of
         # parameter values that form the grid.
         for ndindex in np.ndindex(*self.shape):
-            grid_values = [param_partitions[grid_idx].data[value_idx] for
-                           grid_idx, value_idx in enumerate(ndindex)]
+            grid_values = [
+                param_partitions[grid_idx].data[value_idx]
+                for grid_idx, value_idx in enumerate(ndindex)
+            ]
             params_dict = dict(zip(free_names, grid_values))
             params_dict.update(fixed_params_dict)
             params_obj = params_cls(**params_dict)
@@ -557,17 +588,16 @@ class GridIterator(t.Iterable):
 @dataclass
 class GridExecutor(metaclass=ABCMeta):
     """Executes a grid."""
+
     callback: T_GridExecutorCallback = None
 
     @staticmethod
-    def _make_chi_square_funcs(model: Model,
-                               datasets: DatasetJoin):
+    def _make_chi_square_funcs(model: Model, datasets: DatasetJoin):
         """"""
         likelihoods = [Likelihood(model, dataset) for dataset in datasets]
         return [lk.chi_square for lk in likelihoods]
 
-    def _make_grid_func(self, model: Model,
-                        datasets: DatasetJoin):
+    def _make_grid_func(self, model: Model, datasets: DatasetJoin):
         """Make the function to evaluate on the grid."""
         chi_square_funcs = self._make_chi_square_funcs(model, datasets)
         callback_func = self.callback
@@ -593,8 +623,7 @@ class DaskGridExecutor(GridExecutor):
 
     def map(self, iterator: GridIterator):
         """Evaluates the chi-square on the grid."""
-        grid_func = self._make_grid_func(iterator.eos_model,
-                                         iterator.datasets)
+        grid_func = self._make_grid_func(iterator.eos_model, iterator.datasets)
 
         # Evaluate the grid using a multidimensional iterator. This
         # way we do not allocate memory for all the combinations of
@@ -607,6 +636,7 @@ class DaskGridExecutor(GridExecutor):
 @dataclass
 class Grid:
     """Represent a chi-square evaluation over a parameter grid."""
+
     eos_model: Model
     datasets: DatasetJoin
     fixed_params: t.Dict[str, float]
@@ -614,27 +644,29 @@ class Grid:
     chi_square_data: np.ndarray
 
     @classmethod
-    def from_data(cls, data: t.Iterable[float],
-                  iterator: GridIterator):
+    def from_data(cls, data: t.Iterable[float], iterator: GridIterator):
         """Evaluates the chi-square on the grid."""
         grid_shape = iterator.shape
         chi_square_array: np.ndarray = np.asarray(data).reshape(grid_shape)
-        fixed_params_dict = {spec.name: spec.value for spec in
-                             iterator.fixed_params}
+        fixed_params_dict = {
+            spec.name: spec.value for spec in iterator.fixed_params
+        }
         # The parameter order used to evaluate the grid is defined by the
         # param_partition list order. Converting to a dictionary as follows
         # preserves this order since, in Python>=3.7, dictionaries keep their
         # items sorted according to their insertion order.
         partition_arrays = dict(map(astuple, iterator.param_partitions))
-        return cls(eos_model=iterator.eos_model,
-                   datasets=iterator.datasets,
-                   fixed_params=fixed_params_dict,
-                   partition_arrays=partition_arrays,
-                   chi_square_data=chi_square_array)
+        return cls(
+            eos_model=iterator.eos_model,
+            datasets=iterator.datasets,
+            fixed_params=fixed_params_dict,
+            partition_arrays=partition_arrays,
+            chi_square_data=chi_square_array,
+        )
 
-    def save(self, file: h5py.File,
-             group_name: str = None,
-             force: bool = False):
+    def save(
+        self, file: h5py.File, group_name: str = None, force: bool = False
+    ):
         """Save a grid result to an HDF5 file."""
         if group_name is None or group_name == ROOT_GROUP_NAME:
             base_group = file[ROOT_GROUP_NAME]
@@ -661,11 +693,11 @@ class Grid:
         group.create_dataset("chi_square", data=self.chi_square_data)
 
     @classmethod
-    def load(cls, file: h5py.File,
-             group_name: str = None):
+    def load(cls, file: h5py.File, group_name: str = None):
         """Load a grid result from an HDF5 file."""
-        base_group: h5py.Group = file["/"] if group_name is None else \
-            file[group_name]
+        base_group: h5py.Group = (
+            file["/"] if group_name is None else file[group_name]
+        )
         group = base_group[GRID_GROUP_LABEL]
 
         # Load grid result attributes.
@@ -690,16 +722,19 @@ class Grid:
         chi_square = group["chi_square"][()]
 
         # Make a new instance.
-        return cls(eos_model=eos_model,
-                   datasets=datasets,
-                   fixed_params=fixed_params,
-                   partition_arrays=dict(partition_items),
-                   chi_square_data=chi_square)
+        return cls(
+            eos_model=eos_model,
+            datasets=datasets,
+            fixed_params=fixed_params,
+            partition_arrays=dict(partition_items),
+            chi_square_data=chi_square,
+        )
 
 
 @dataclass(frozen=True)
 class ConfidenceInterval:
     """Represent a parameter confidence interval."""
+
     best_fit: float
     lower_bound: float
     upper_bound: float
@@ -717,13 +752,13 @@ class ConfidenceInterval:
 @dataclass
 class ParamGrid:
     """Represent a chi-square grid over a single parameter partition."""
+
     partition: np.ndarray
     chi_square: np.ndarray
 
     # Private attributes.
     chi_square_min: float = field(default=None, init=False, repr=False)
-    spl_func: UnivariateSpline = \
-        field(default=None, init=False, repr=False)
+    spl_func: UnivariateSpline = field(default=None, init=False, repr=False)
 
     def __post_init__(self):
         """Post-initialization stage."""
@@ -731,8 +766,9 @@ class ParamGrid:
         spl_func = UnivariateSpline(self.partition, self.chi_square, s=0)
         self.spl_func = spl_func
 
-    def make_confidence_func(self, chi_square_delta: float,
-                             chi_square_min: float):
+    def make_confidence_func(
+        self, chi_square_delta: float, chi_square_min: float
+    ):
         """Build a function whose zeros give confidence interval."""
 
         def confidence_func(x: t.Any):
@@ -741,17 +777,21 @@ class ParamGrid:
 
         return confidence_func
 
-    def get_confidence_interval(self, chi_square_delta: float,
-                                chi_square_min: float = None,
-                                ini_guess: float = None,
-                                delta_ini_guess: float = None):
+    def get_confidence_interval(
+        self,
+        chi_square_delta: float,
+        chi_square_min: float = None,
+        ini_guess: float = None,
+        delta_ini_guess: float = None,
+    ):
         """Return the confidence interval for the given delta chi-square."""
         partition = self.partition
         chi_square = self.chi_square
         chi_square_min = chi_square_min or self.chi_square_min
         # Build the confidence function.
-        confidence_func = self.make_confidence_func(chi_square_delta,
-                                                    chi_square_min)
+        confidence_func = self.make_confidence_func(
+            chi_square_delta, chi_square_min
+        )
         lower_lim = partition.min()
         upper_lim = partition.max()
         if ini_guess is None:
@@ -774,8 +814,9 @@ class ParamGrid:
             xl = chi_square_greater[-1]
             xu = left_range[chi_square_left < 0][0]
             try:
-                x_lower, *info = newton(confidence_func, xl, x1=xu, disp=True,
-                                        full_output=True)
+                x_lower, *info = newton(
+                    confidence_func, xl, x1=xu, disp=True, full_output=True
+                )
             except RuntimeError:
                 x_lower = lower_lim
         # Try to find the upper bound.
@@ -788,12 +829,14 @@ class ParamGrid:
             xl = right_range[chi_square_right < 0][0]
             xu = chi_square_greater[0]
             try:
-                x_upper, *info = newton(confidence_func, xl, x1=xu, disp=True,
-                                        full_output=True)
+                x_upper, *info = newton(
+                    confidence_func, xl, x1=xu, disp=True, full_output=True
+                )
             except RuntimeError:
                 x_upper = upper_lim
         # Return the confidence interval.
-        opt_result = minimize_scalar(confidence_func, method="bounded",
-                                     bounds=(x_lower, x_upper))
+        opt_result = minimize_scalar(
+            confidence_func, method="bounded", bounds=(x_lower, x_upper)
+        )
         x_bfv = opt_result["x"]
         return ConfidenceInterval(x_bfv, x_lower, x_upper)

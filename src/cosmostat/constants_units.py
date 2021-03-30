@@ -7,7 +7,7 @@
 import numpy as np
 
 PI = np.pi
-C = 299792458.
+C = 299792458.0
 HBAR = 6.62606896 / (2 * PI) * 1e-34
 E = 1.6021773 * 1e-19  # Electron unit charge
 G = 6.6738 * 1e-11  # Newton's gravity constant
@@ -29,15 +29,19 @@ ZDEC = 1090.09
 # Hubble parameter:
 REDUCED_H0 = 0.6731
 H0 = (REDUCED_H0 * 1e5) / C
-H0P = (100 * 1e3) / 2.99792458e+8
+H0P = (100 * 1e3) / 2.99792458e8
 
 # Critical density
 RHOCR0 = 3 * (REDUCED_H0 * MPLANCK * E * MPC * 10 ** 5 / (C ** 2 * HBAR)) ** 2
 
 # Radiation density
-RHOR0 = (1 + NEFF * 7. / 8. * (4. / 11.) ** (
-    4. / 3.)) * PI ** 2 / 15. * TG0 ** 4 * (KBOLTZ * MPC / (
-    C * HBAR)) ** 4
+RHOR0 = (
+    (1 + NEFF * 7.0 / 8.0 * (4.0 / 11.0) ** (4.0 / 3.0))
+    * PI ** 2
+    / 15.0
+    * TG0 ** 4
+    * (KBOLTZ * MPC / (C * HBAR)) ** 4
+)
 
 # ------------------------------
 # \\\\  The default value of the physical densities \\\\\\\\
@@ -71,17 +75,21 @@ RHODE0 = OMEGADE * RHOCR0
 # --------------------------------------------------------------------#
 #
 DMATCMB_AL_3 = np.array(
-    [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]])
+    [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]]
+)
 ERRCMB_AL_3 = np.array([0.0088, 0.15, 0.00029])
 
 # Update feb 12 2020: add the full matrix  to include ns
 # 4x4 matrix
 DMATCMB_AL_4 = np.array(
-    [[1.0, 0.64, -0.75, -0.89], [0.64, 1.0, -0.55, -0.57],
-     [-0.75, -0.55, 1.0, 0.71], [-0.89, -0.57, 0.71, 1.0]])
+    [
+        [1.0, 0.64, -0.75, -0.89],
+        [0.64, 1.0, -0.55, -0.57],
+        [-0.75, -0.55, 1.0, 0.71],
+        [-0.89, -0.57, 0.71, 1.0],
+    ]
+)
 ERRCMB_AL_4 = np.array([0.0088, 0.15, 0.00029, 0.0072])
 
 COVMATCMB_3 = DMATCMB_AL_3 * ERRCMB_AL_3 * ERRCMB_AL_3[:, np.newaxis]
 COVMATCMB_4 = DMATCMB_AL_4 * ERRCMB_AL_4 * ERRCMB_AL_4[:, np.newaxis]
-
-

@@ -1,5 +1,6 @@
 import os
 from functools import lru_cache
+
 import numpy as np
 from numba import carray, cfunc, jit, types
 from scipy import LowLevelCallable, integrate
@@ -31,6 +32,7 @@ quad = integrate.quad
 #
 # ---------------------------------------------------------------------#
 
+
 @jit(nopython=True, cache=True)
 def wz(z, w_params):
     """
@@ -51,8 +53,8 @@ def wz(z, w_params):
         return -1
 
     if w1 == 0:
-        #return -1 - w0 * np.exp(-z) * (1 - z - w2)
-        return -1 + np.exp(-z) * (w0*z + w2)
+        # return -1 - w0 * np.exp(-z) * (1 - z - w2)
+        return -1 + np.exp(-z) * (w0 * z + w2)
 
     if w2 == 0:
         return -1 - w0 * np.exp(-z) * (z ** w1 - z)
@@ -111,18 +113,18 @@ def f_DEz_cc(z, w_params):
     """
     w0, w1, w2 = w_params
 
-    intDE, error = integrate.quad(f_DEz_integrand_cf_cc, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=w_params)
+    intDE, error = integrate.quad(
+        f_DEz_integrand_cf_cc, 0, z, epsabs=QUAD_EPSABS, args=w_params
+    )
     return np.exp(3 * intDE)
 
 
 # @lru_cache(maxsize=1024 * 1024)
 def f_DEz_sp(z, w_params):
     """Integral of DE eos for Hubble function"""
-    intDE, error = integrate.quad(f_DEz_integrand, 0, z,
-                                  epsabs=QUAD_EPSABS,
-                                  args=(w_params,))
+    intDE, error = integrate.quad(
+        f_DEz_integrand, 0, z, epsabs=QUAD_EPSABS, args=(w_params,)
+    )
     return np.exp(3 * intDE)
 
 

@@ -9,6 +9,7 @@ from .util import console
 @dataclass
 class CLIError(ClickException):
     """Represent a CLI Exception."""
+
     message: str
     console: Console = console
     label: str = "[red]Error[/]"

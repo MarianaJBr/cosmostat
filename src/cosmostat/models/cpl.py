@@ -2,13 +2,14 @@ import typing as t
 from dataclasses import asdict, dataclass
 
 import numpy as np
-from cosmostat.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
-from cosmostat.cosmology import (
-    Functions as BaseFunctions, Model, Params as ParamsBase,
-    T_CosmologyFunc
-)
 from numba import jit
 from scipy import integrate
+
+from cosmostat.constants_units import OMEGABH2, OMEGACH2, REDUCED_H0
+from cosmostat.cosmology import Functions as BaseFunctions
+from cosmostat.cosmology import Model
+from cosmostat.cosmology import Params as ParamsBase
+from cosmostat.cosmology import T_CosmologyFunc
 
 # ==========   Numerical integration quantities for the calculation ===========
 QUAD_EPS_ABS = 1.49e-8
@@ -26,6 +27,7 @@ quad = integrate.quad
 # ---------------------------------------------------------------------#
 class Params(ParamsBase, t.NamedTuple):
     """"""
+
     w0: float
     w1: float
     h: float = REDUCED_H0
@@ -36,8 +38,8 @@ class Params(ParamsBase, t.NamedTuple):
 @jit(nopython=True, cache=True)
 def wz(z: float, params: Params):
     """
-   w(z) = w0 + (w1 - w0) * z /(1+z)
-    CPL
+    w(z) = w0 + (w1 - w0) * z /(1+z)
+     CPL
     """
     w0 = params.w0
     w1 = params.w1
@@ -87,6 +89,4 @@ functions = Functions()
 functions_dict = asdict(functions)
 
 # Singleton with the model definition.
-model = Model(name="CPL",
-              params_cls=Params,
-              functions=functions)
+model = Model(name="CPL", params_cls=Params, functions=functions)

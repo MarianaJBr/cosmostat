@@ -3,30 +3,26 @@ import pathlib
 
 import click
 import numpy
-from cosmostat import (
-    get_model, registered_models
-)
-from cosmostat.exceptions import CLIError
-from cosmostat.util import console
 from rich import box
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.text import Text
 
+from cosmostat import get_model, registered_models
+from cosmostat.exceptions import CLIError
+from cosmostat.util import console
+
 # Use these values as possible choices for EOS_MODEL and DATASET arguments.
 _all_models = registered_models()
 
 
 @click.command()
-@click.argument("eos_model",
-                type=click.Choice(_all_models),
-                metavar="EOS_MODEL")
-@click.argument("file",
-                type=click.Path(exists=True, dir_okay=False))
-@click.option("--as-json",
-              is_flag=True,
-              help="Report all output as JSON.")
+@click.argument(
+    "eos_model", type=click.Choice(_all_models), metavar="EOS_MODEL"
+)
+@click.argument("file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--as-json", is_flag=True, help="Report all output as JSON.")
 def describe_fit_legacy(eos_model: str, file: str, as_json: bool):
     """Describe a "legacy" best-fit result in an existing FILE.
 
@@ -49,7 +45,7 @@ def describe_fit_legacy(eos_model: str, file: str, as_json: bool):
     chi_square_min = data[1]
     chi_square_reduced = data[2]
     num_params = len(param_names)
-    params = _eos_model.params_cls(*data[3:3 + num_params])
+    params = _eos_model.params_cls(*data[3 : 3 + num_params])
     omega_m = data[3 + num_params]
     aic = data[3 + num_params + 1]
     bic = data[3 + num_params + 2]
@@ -60,7 +56,7 @@ def describe_fit_legacy(eos_model: str, file: str, as_json: bool):
         chi_square_reduced=chi_square_reduced,
         omega_m=omega_m,
         aic=aic,
-        bic=bic
+        bic=bic,
     )
 
     if as_json:
@@ -76,8 +72,8 @@ def describe_fit_legacy(eos_model: str, file: str, as_json: bool):
     console.print(title_panel, justify="center")
     file_text = f"Output file: [red bold]{file}[/]"
     console.print(Padding(file_text, (1, 0, 0, 0)), justify="center")
-    fit_result_text = Pretty(fit_result,
-                             highlighter=console.highlighter,
-                             justify="left")
+    fit_result_text = Pretty(
+        fit_result, highlighter=console.highlighter, justify="left"
+    )
     result_text = Padding(fit_result_text, (1, 1))
     console.print(result_text, justify="center")
