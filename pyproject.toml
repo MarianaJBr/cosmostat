@@ -1,4 +1,56 @@
+[tool.poetry]
+name = "cosmostat"
+version = "0.6.0"
+description = "Python code to estimate chi-square constraints on cosmology models using background quantities. BAO, SNeIa and CC already implemented. JJE, SEoS, CPL, BA equations of state."
+authors = [
+  "Mariana Jaber <mariana.ifunam@gmail.com>",
+  "Omar Abel Rodríguez-López <oarodriguez.mx@gmail.com>"
+]
+readme = "README.md"
+homepage = "https://github.com/oarodriguez/cosmostat"
+repository = "https://github.com/oarodriguez/cosmostat"
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Physics"
+]
+
+packages = [
+  { include = "cosmostat", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.7.1,<3.10"
+importlib-metadata = { version = "^3.3.0", python = "<3.8" }
+numpy = "^1.20.2"
+scipy = "^1.6.2"
+matplotlib = "^3.4.0"
+numba = "^0.53.1"
+click = "^7.1.2"
+dask = { extras = ["bag"], version = "^2021.3.1" }
+h5py = "^3.2.1"
+rich = "^10.0.1"
+toolz = "^0.11.1"
+
+[tool.poetry.dev-dependencies]
+jupyter = "^1.0.0"
+jupyterlab = "^3.0.12"
+pytest = "^6.2.2"
+
+[tool.poetry.scripts]
+cosmostat = "cosmostat.cli:main"
+
 [build-system]
-# Minimum requirements for the build system to execute.
-requires = ["setuptools>=40.6.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
