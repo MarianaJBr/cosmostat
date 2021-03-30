@@ -15,6 +15,13 @@ from .likelihood import Likelihood
 from .models import init_register_models
 from .util import plug_external_models
 
+try:
+    import importlib.metadata as importlib_metadata
+except ModuleNotFoundError:
+    import importlib_metadata
+
+__version__ = importlib_metadata.version("cosmostat")
+
 #################
 # Initialization
 #################
