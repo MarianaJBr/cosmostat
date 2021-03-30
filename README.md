@@ -1,4 +1,4 @@
-# [chisquarecosmo][repo-url]
+# [cosmostat][repo-url]
 
 Python library to estimate chi-square constraints on cosmology models using
 background quantities.
@@ -24,11 +24,11 @@ conda env create -f ./conda/env-specs/default.yml
 ```
 
 After this operation completes, ``conda`` will create a new environment named
-``chisquarecosmo-dev``. We can verify this information by executing ``conda info
+``cosmostat-dev``. We can verify this information by executing ``conda info
 -e``. Finally, we activate the environment with
 
 ```shell
-conda activate chisquarecosmo-dev
+conda activate cosmostat-dev
 ```
 
 The environment contains python 3.7 as the interpreter. We can look at all of
@@ -38,7 +38,7 @@ the installed packages by calling ``conda list``.
 
 We can install the library in development mode. This way, the packages and
 modules can be imported from any python script or jupyter notebook, as long as
-the ``chisquarecosmo-dev`` environment remains active.
+the ``cosmostat-dev`` environment remains active.
 
 Installing in development mode is achieved by executing the following
 instruction at the project root:
@@ -50,13 +50,13 @@ instruction at the project root:
 ## Command Line Interface
 
 After installing in development mode, we can use the **CLI** of the library,
-whose functionality is contained in the ``chisquarecosmo``
-(``chisquarecosmo.exe`` on Windows) executable.
+whose functionality is contained in the ``cosmostat``
+(``cosmostat.exe`` on Windows) executable.
 
 We can access the command help pages through
 
 ```shell
-chisquarecosmo --help
+cosmostat --help
 ```
 
 ### Information about the models and datasets
@@ -65,7 +65,7 @@ We can get information about the implemented models and observational datasets
 with the ``info`` subcommand,
 
 ```shell
-chisquarecosmo info
+cosmostat info
 ```
 
 For example, the CPL model accepts the following parameters,
@@ -92,7 +92,7 @@ parameters. This procedure is realized through the ``chi-square-fit``
 subcommand,
 
 ```shell
-chisquarecosmo chi-square-fit
+cosmostat chi-square-fit
 ```
 
 This command takes two arguments: the ``EOS_MODEL``, and the ``DATASET`` (or a
@@ -120,7 +120,7 @@ fitting procedure as follows:
 In summary, the full command line for this fitting becomes
 
 ```shell
-chisquarecosmo chi-square-fit CPL BAO --param w0 -3:1 --param w1 0:1 --param h 0.5 -o ./best-fit-cpl#1.h5
+cosmostat chi-square-fit CPL BAO --param w0 -3:1 --param w1 0:1 --param h 0.5 -o ./best-fit-cpl#1.h5
 ```
 
 The program shows the execution progress and the best-fit result.
@@ -134,7 +134,7 @@ In addition to fitting, we can evaluate the $\chi^2$ on a parameter grid. We do
 this through the ``chi-square-grid``  subcommand,
 
 ```shell
-chisquarecosmo chi-square-grid
+cosmostat chi-square-grid
 ```
 
 Its usage is similar to the ``chi-square-fit`` command: we pass a model and a
@@ -159,7 +159,7 @@ BAO dataset. We can define the procedure as follows:
 The full command line to evaluate the grid becomes
 
 ```shell
-chisquarecosmo chi-square-grid CPL BAO --param w0 -3:1:100 --param w1 0:1:100 -o ./grid-cpl-bao#1.h5
+cosmostat chi-square-grid CPL BAO --param w0 -3:1:100 --param w1 0:1:100 -o ./grid-cpl-bao#1.h5
 ```
 
 The program shows the grid evaluation progress. By default, it uses all of the
@@ -176,7 +176,7 @@ system's available processes for evaluating the $\chi^2$ in parallel.
 
 [miniconda-site]: https://docs.conda.io/en/latest/miniconda.html
 [conda-guide]: https://docs.conda.io/projects/conda/en/latest/user-guide/index.html
-[repo-url]: https://github.com/oarodriguez/chisquarecosmo
+[repo-url]: https://github.com/oarodriguez/cosmostat
 [gh-mjaber]: https://github.com/MarianaJBr
 [inspire-mjaber]: https://inspirehep.net/authors/1707914
 [inspire-ljaime]: https://inspirehep.net/authors/1258854

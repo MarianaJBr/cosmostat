@@ -48,7 +48,7 @@ EXTRAS_REQUIRE = {
 EXTRAS_REQUIRE["dev"] = EXTRAS_REQUIRE["test"]
 
 ENTRY_POINTS = {
-    "console_scripts": ["chisquarecosmo = chisquarecosmo.cli:main"]
+    "console_scripts": ["cosmostat = cosmostat.cli:main"]
 }
 
 SHORT_DESCRIPTION = "Python code to estimate chi-square constraints on " \
@@ -60,7 +60,7 @@ SHORT_DESCRIPTION = "Python code to estimate chi-square constraints on " \
 with open("./README.md") as fp:
     readme_content = fp.read()
 
-setup(name="chisquarecosmo",
+setup(name="cosmostat",
       version="0.5.0",
       description=SHORT_DESCRIPTION,
       long_description=readme_content,
@@ -69,7 +69,7 @@ setup(name="chisquarecosmo",
       author_email="mariana.ifunam@gmail.com, oarodriguez.mx@gmail.com",
       maintainer=None,
       maintainer_email=None,
-      url="https://github.com/oarodriguez/chisquarecosmo",
+      url="https://github.com/oarodriguez/cosmostat",
       packages=PACKAGES,
       classifiers=CLASSIFIERS,
       package_dir=PACKAGE_DIR,
@@ -81,5 +81,5 @@ setup(name="chisquarecosmo",
       extras_require=EXTRAS_REQUIRE,
       python_requires=">=3.7,<4.0",
       project_urls={
-          "Source Code": "https://github.com/oarodriguez/chisquarecosmo"
+          "Source Code": "https://github.com/oarodriguez/cosmostat"
       })

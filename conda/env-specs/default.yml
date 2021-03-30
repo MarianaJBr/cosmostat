@@ -1,6 +1,6 @@
 # Default conda environment.
 # Use conda env create -f default.yml to create this development environment.
-name: chisquarecosmo-dev
+name: cosmostat-dev
 # We need some packages from conda-forge.
 channels:
   - conda-forge
