@@ -61,7 +61,7 @@ with open("./README.md") as fp:
     readme_content = fp.read()
 
 setup(name="cosmostat",
-      version="0.5.0",
+      version="0.6.0",
       description=SHORT_DESCRIPTION,
       long_description=readme_content,
       long_description_content_type="text/markdown",
