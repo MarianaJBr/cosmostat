@@ -34,8 +34,12 @@ HEADER_LIKE_CHAIN = """---"""
 current_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, current_dir)
 
-from cosmostat.legacy.Statistics import (loglikeBAO, loglikeBAOSNeHz, loglikehz,
-                                         loglikeSNe)
+from cosmostat.legacy.Statistics import (
+    loglikeBAO,
+    loglikeBAOSNeHz,
+    loglikehz,
+    loglikeSNe,
+)
 
 # TODO check the dependence on the cosmological model through the loglike etc
 

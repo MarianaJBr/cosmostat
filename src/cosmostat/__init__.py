@@ -4,11 +4,21 @@
     Python code to estimate chi-square constraints on cosmology models using
     background quantities.
 """
-from .cosmology import (Dataset, DatasetJoin, Model, Params, get_dataset,
-                        get_dataset_join, get_model, register_dataset,
-                        register_dataset_join, register_model,
-                        registered_dataset_joins, registered_datasets,
-                        registered_models)
+from .cosmology import (
+    Dataset,
+    DatasetJoin,
+    Model,
+    Params,
+    get_dataset,
+    get_dataset_join,
+    get_model,
+    register_dataset,
+    register_dataset_join,
+    register_model,
+    registered_dataset_joins,
+    registered_datasets,
+    registered_models,
+)
 from .data import init_register_datasets
 from .likelihood import Likelihood
 from .models import init_register_models
@@ -40,6 +50,7 @@ __all__ = [
     "Likelihood",
     "Model",
     "Params",
+    "__version__",
     "get_dataset",
     "get_dataset_join",
     "get_model",

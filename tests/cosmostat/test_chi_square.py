@@ -1,7 +1,11 @@
 import numpy as np
 
-from cosmostat.chi_square import (FixedParamSpec, ParamGrid,
-                                  fixed_specs_as_array, fixed_specs_from_array)
+from cosmostat.chi_square import (
+    FixedParamSpec,
+    ParamGrid,
+    fixed_specs_as_array,
+    fixed_specs_from_array,
+)
 
 
 def test_confidence_interval():

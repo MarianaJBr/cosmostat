@@ -3,8 +3,13 @@ import numpy
 from rich.padding import Padding
 from rich.table import Table
 
-from cosmostat import (get_dataset, get_model, registered_dataset_joins,
-                       registered_datasets, registered_models)
+from cosmostat import (
+    get_dataset,
+    get_model,
+    registered_dataset_joins,
+    registered_datasets,
+    registered_models,
+)
 from cosmostat.util import console
 
 _models = registered_models()

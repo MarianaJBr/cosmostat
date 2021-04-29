@@ -14,9 +14,14 @@ from cosmostat.chi_square import BestFitFinder as BaseBestFitFinder
 from cosmostat.chi_square import FreeParamSpec
 from cosmostat.chi_square import Grid as BaseGrid
 from cosmostat.chi_square import GridExecutor as GridExecutorBase
-from cosmostat.chi_square import (GridIterator, T_BestFitFinderCallback,
-                                  T_FixedParamSpecs, T_GridExecutorCallback,
-                                  fixed_specs_as_array, fixed_specs_from_array)
+from cosmostat.chi_square import (
+    GridIterator,
+    T_BestFitFinderCallback,
+    T_FixedParamSpecs,
+    T_GridExecutorCallback,
+    fixed_specs_as_array,
+    fixed_specs_from_array,
+)
 from cosmostat.likelihood import T_LikelihoodFunc
 
 from .likelihood import Likelihood
@@ -62,7 +67,7 @@ def callback_base(
     chi_square_func: T_LikelihoodFunc,
     fixed_specs: T_FixedParamSpecs,
     free_specs: t.List[FreeParamSpec],
-    callback_func: T_BestFitFinderCallback
+    callback_func: T_BestFitFinderCallback,
 ):
     """Callback for SciPy optimizer."""
     fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}

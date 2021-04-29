@@ -7,8 +7,12 @@ import h5py
 import numpy as np
 from dask import bag
 from scipy.interpolate import UnivariateSpline
-from scipy.optimize import (OptimizeResult, differential_evolution,
-                            minimize_scalar, newton)
+from scipy.optimize import (
+    OptimizeResult,
+    differential_evolution,
+    minimize_scalar,
+    newton,
+)
 
 from .cosmology import DatasetJoin, Model, Params, get_model
 from .likelihood import Likelihood, T_LikelihoodFunc
@@ -361,7 +365,7 @@ def callback_base(
     chi_square_func: T_LikelihoodFunc,
     fixed_specs: T_FixedParamSpecs,
     free_specs: t.List[FreeParamSpec],
-    callback_func: T_BestFitFinderCallback
+    callback_func: T_BestFitFinderCallback,
 ):
     """Callback for SciPy optimizer."""
     fixed_specs_dict = {spec.name: spec.value for spec in fixed_specs}

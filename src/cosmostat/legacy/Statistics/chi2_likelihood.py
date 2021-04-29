@@ -5,8 +5,13 @@ from multiprocessing.pool import Pool
 from cosmostat.constants_units import *
 from cosmostat.data.bao_data import DATA_BAO_7_NEW, ERRORS_RBAO_7_NEW
 from cosmostat.data.hz_data import DATA_HZ, ERROR_HZ, REDSHIFTS_HZ
+
 # from Input.SNeIa_bdata import DATA_SNe, REDSHIFTS_SNe, ERROR_SNe
-from cosmostat.data.sneia_union2_1 import DATA_SNE_SQR, ERROR_SNE, REDSHIFTS_SNE
+from cosmostat.data.sneia_union2_1 import (
+    DATA_SNE_SQR,
+    ERROR_SNE,
+    REDSHIFTS_SNE,
+)
 from cosmostat.legacy.Cosmology_DE import Rcmb, hubbleflat, l_A, mu_SNe, rBAO
 
 # from progressbar import Bar, ETA, Percentage, ProgressBar

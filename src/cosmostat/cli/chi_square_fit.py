@@ -14,12 +14,23 @@ from rich.table import Table
 from rich.text import Text
 from toolz import groupby
 
-from cosmostat.chi_square import (DEBestFitFinder, FixedParamSpec,
-                                  FreeParamSpec, has_best_fit)
-from cosmostat.cosmology import (Params, get_dataset_join, get_model,
-                                 registered_dataset_joins, registered_models)
+from cosmostat.chi_square import (
+    DEBestFitFinder,
+    FixedParamSpec,
+    FreeParamSpec,
+    has_best_fit,
+)
+from cosmostat.cosmology import (
+    Params,
+    get_dataset_join,
+    get_model,
+    registered_dataset_joins,
+    registered_models,
+)
 from cosmostat.exceptions import CLIError
-from cosmostat.legacy.chi_square import DEBestFitFinder as LegacyDEBestFitFinder
+from cosmostat.legacy.chi_square import (
+    DEBestFitFinder as LegacyDEBestFitFinder,
+)
 from cosmostat.util import console
 
 # By default, the routine saves the best-fit results in this file.

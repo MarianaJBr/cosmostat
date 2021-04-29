@@ -10,13 +10,24 @@ from rich.padding import Padding
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
 # Accepted parameter partition scales.
 from toolz import groupby
 
-from cosmostat.chi_square import (DaskGridExecutor, FixedParamSpec, Grid,
-                                  GridIterator, ParamPartitionSpec, has_grid)
-from cosmostat.cosmology import (get_dataset_join, get_model,
-                                 registered_dataset_joins, registered_models)
+from cosmostat.chi_square import (
+    DaskGridExecutor,
+    FixedParamSpec,
+    Grid,
+    GridIterator,
+    ParamPartitionSpec,
+    has_grid,
+)
+from cosmostat.cosmology import (
+    get_dataset_join,
+    get_model,
+    registered_dataset_joins,
+    registered_models,
+)
 from cosmostat.exceptions import CLIError
 from cosmostat.legacy.chi_square import Grid as LegacyGrid
 from cosmostat.legacy.chi_square import PoolGridExecutor

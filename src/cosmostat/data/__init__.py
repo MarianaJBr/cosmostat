@@ -1,7 +1,11 @@
 import numpy as np
 
-from cosmostat import (Dataset, DatasetJoin, register_dataset,
-                       register_dataset_join)
+from cosmostat import (
+    Dataset,
+    DatasetJoin,
+    register_dataset,
+    register_dataset_join,
+)
 
 from . import bao_data, hz_data, sneia_union2_1
 
