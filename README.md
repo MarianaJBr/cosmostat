@@ -5,53 +5,59 @@ background quantities.
 
 ## Installation 🧱
 
-We use ``conda`` as the package and dependency manager of our project.
+Cosmostat project uses _poetry_ as the package and dependency manager. If _poetry_ is not installed
+in your system, you can follow the installation instructions at the [poetry website][poetry-url].
 
-The following sections assume we have ``conda`` already installed on our
-computers. The recommended way to obtain ``conda`` is by installing
-[Miniconda][miniconda-site], which is available for Linux, Mac OS, and Windows.
-Please refer to the [conda user guide][conda-guide] for installation, help, and
+To install cosmostat, it is recommended to create a virtual environment isolated from the main
+Python interpreter. We have several tools to create a virtual environment, being **conda** the
+recommended tool for handling virtual environments and software packages (for now).
+
+### Using conda to manage virtual environments
+
+The following sections assume we have ``conda`` already installed on our computers. The recommended
+way to obtain ``conda`` is by installing [Miniconda][miniconda-site], which is available for Linux,
+Mac OS, and Windows. Please refer to the [conda user guide][conda-guide] for installation, help, and
 usage instructions.
 
-### Creating a conda environment
+#### Creating a virtual environment
 
-The basics requirements of the project are listed in the
-``conda/env-specs/default.yml`` environment file. We create a new conda
-environment by typing the following instruction at the project root directory:
-
-```shell
-conda env create -f ./conda/env-specs/default.yml
-```
-
-After this operation completes, ``conda`` will create a new environment named
-``cosmostat-dev``. We can verify this information by executing ``conda info
--e``. Finally, we activate the environment with
+Since poetry handles cosmostat dependencies, we only need conda to create a minimum, isolated
+virtual environment. Cosmostat requires Python 3.7 and above to properly work, so we can create the
+virtual environment as follows:
 
 ```shell
-conda activate cosmostat-dev
+conda create -n cosmostatenv python=3.7
 ```
 
-The environment contains python 3.7 as the interpreter. We can look at all of
-the installed packages by calling ``conda list``.
-
-### Installing in development mode
-
-We can install the library in development mode. This way, the packages and
-modules can be imported from any python script or jupyter notebook, as long as
-the ``cosmostat-dev`` environment remains active.
-
-Installing in development mode is achieved by executing the following
-instruction at the project root:
+This environment contains python 3.7 as the interpreter and a few packages. Once created, we only
+must activate it,
 
 ```shell
- pip install -e . --no-deps --no-build-isolation
+conda activate cosmostatdev
 ```
+
+#### Installing cosmostat in development mode
+
+Once the virtual environment has been activated, type the following instruction at the cosmostat
+root directory:
+
+```shell
+poetry install
+```
+
+This command will install cosmostat and all of its dependencies in the ``cosmostatdev`` virtual
+environment. We can have a look at all the installed packages in the environment by calling ``conda
+list``. For most packages, conda will indicate they were installed from [PyPI][pypi-url], since they
+were installed by poetry, not by conda.
+
+In addition to installing cosmostat dependencies, poetry will install the cosmostat package (located
+in the ``src`` subdirectory) in development mode. Therefore, the cosmostat package will be
+importable from any python script or jupyter notebook as a regular python package.
 
 ## Command Line Interface
 
-After installing in development mode, we can use the **CLI** of the library,
-whose functionality is contained in the ``cosmostat``
-(``cosmostat.exe`` on Windows) executable.
+After installing in development mode, we can use the **CLI** of the library, whose functionality is
+contained in the ``cosmostat`` (``cosmostat.exe`` on Windows) executable.
 
 We can access the command help pages through
 
@@ -61,8 +67,8 @@ cosmostat --help
 
 ### Information about the models and datasets
 
-We can get information about the implemented models and observational datasets
-with the ``info`` subcommand,
+We can get information about the implemented models and observational datasets with the ``info``
+subcommand,
 
 ```shell
 cosmostat info
@@ -86,25 +92,23 @@ For example, the CPL model accepts the following parameters,
 
 ### $\chi^2$-fitting and optimization procedure
 
-By using the CLI, we can fit a cosmological model to one or more observational
-datasets. We do this by minimizing the $\chi^2$ as a function of the model
-parameters. This procedure is realized through the ``chi-square-fit``
-subcommand,
+By using the CLI, we can fit a cosmological model to one or more observational datasets. We do this
+by minimizing the $\chi^2$ as a function of the model parameters. This procedure is realized through
+the ``chi-square-fit`` subcommand,
 
 ```shell
 cosmostat chi-square-fit
 ```
 
-This command takes two arguments: the ``EOS_MODEL``, and the ``DATASET`` (or a
-union of one or more datasets). We must then specify the optimization parameters
-bounds, or fix one or more of them with the ``--param`` option. We also must
-supply an output file to save the best-fit parameters through the ``-o`` option.
+This command takes two arguments: the ``EOS_MODEL``, and the ``DATASET`` (or a union of one or more
+datasets). We must then specify the optimization parameters bounds, or fix one or more of them with
+the ``--param`` option. We also must supply an output file to save the best-fit parameters through
+the ``-o`` option.
 
-For example, we could try to fit the CPL model to the BAO dataset. According to
-the model information, the CPL model requires specifying, at least, the
-parameters ``w0`` and ``w1``. The rest of the parameters are optional; if
-omitted, the routine assumes they take their default values. We can define the
-fitting procedure as follows:
+For example, we could try to fit the CPL model to the BAO dataset. According to the model
+information, the CPL model requires specifying, at least, the parameters ``w0`` and ``w1``. The rest
+of the parameters are optional; if omitted, the routine assumes they take their default values. We
+can define the fitting procedure as follows:
 
 * We want ``w0`` to lie in the interval ``[-3, 1]``. We pass the option
   ``--param w0 -3:1``.
@@ -130,31 +134,29 @@ We can always see the detailed ``chi-square-fit`` subcommand usage through the
 
 ### Evaluation of $\chi^2$ in a parameter grid
 
-In addition to fitting, we can evaluate the $\chi^2$ on a parameter grid. We do
-this through the ``chi-square-grid``  subcommand,
+In addition to fitting, we can evaluate the $\chi^2$ on a parameter grid. We do this through the
+``chi-square-grid``  subcommand,
 
 ```shell
 cosmostat chi-square-grid
 ```
 
-Its usage is similar to the ``chi-square-fit`` command: we pass a model and a
-dataset as arguments. We also specify the parameters that define the grid
-and/or parameters that should be held fixed. For non-fixed parameters, we have
-to indicate a partition to evaluate $\chi^2$, i.e., the partition bounds and how
-many elements it should have.
+Its usage is similar to the ``chi-square-fit`` command: we pass a model and a dataset as arguments.
+We also specify the parameters that define the grid and/or parameters that should be held fixed. For
+non-fixed parameters, we have to indicate a partition to evaluate $\chi^2$, i.e., the partition
+bounds and how many elements it should have.
 
-For example, we could evaluate the $\chi^2$ of the CPL model, together with the
-BAO dataset. We can define the procedure as follows:
+For example, we could evaluate the $\chi^2$ of the CPL model, together with the BAO dataset. We can
+define the procedure as follows:
 
-* We want a partition over ``w0`` in the interval ``[-3, 1]`` with ``100``
-  items. We pass the option ``--param w0 -3:1:100``.
-* We want a partition over ``w1`` in the interval ``[0, 1]`` with ``100``
-  elements. We use the option ``--param w1 -0:1:100``.
-* Parameters ``h``, ``omegach2``, and ``omegabh2`` keep their default values. We
-  can omit them from the command.
-* The best-fit result should be saved in an HDF5 file named
-  ``./grid-cpl-bao#1.h5`` in the current working directory. We pass the option
-  ``-o ./grid-cpl-bao#1.h5``.
+* We want a partition over ``w0`` in the interval ``[-3, 1]`` with ``100`` items. We pass the option
+  ``--param w0 -3:1:100``.
+* We want a partition over ``w1`` in the interval ``[0, 1]`` with ``100`` elements. We use the
+  option ``--param w1 -0:1:100``.
+* Parameters ``h``, ``omegach2``, and ``omegabh2`` keep their default values. We can omit them from
+  the command.
+* The best-fit result should be saved in an HDF5 file named ``./grid-cpl-bao#1.h5`` in the current
+  working directory. We pass the option ``-o ./grid-cpl-bao#1.h5``.
 
 The full command line to evaluate the grid becomes
 
@@ -162,8 +164,8 @@ The full command line to evaluate the grid becomes
 cosmostat chi-square-grid CPL BAO --param w0 -3:1:100 --param w1 0:1:100 -o ./grid-cpl-bao#1.h5
 ```
 
-The program shows the grid evaluation progress. By default, it uses all of the
-system's available processes for evaluating the $\chi^2$ in parallel.
+The program shows the grid evaluation progress. By default, it uses all of the system's available
+processes for evaluating the $\chi^2$ in parallel.
 
 ## Authors
 
@@ -176,6 +178,8 @@ system's available processes for evaluating the $\chi^2$ in parallel.
 
 [miniconda-site]: https://docs.conda.io/en/latest/miniconda.html
 [conda-guide]: https://docs.conda.io/projects/conda/en/latest/user-guide/index.html
+[poetry-url]: https://python-poetry.org/
+[pypi-url]: https://pypi.org/
 [repo-url]: https://github.com/oarodriguez/cosmostat
 [gh-mjaber]: https://github.com/MarianaJBr
 [inspire-mjaber]: https://inspirehep.net/authors/1707914
