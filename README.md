@@ -33,7 +33,7 @@ This environment contains python 3.7 as the interpreter and a few packages. Once
 must activate it,
 
 ```shell
-conda activate cosmostatdev
+conda activate cosmostatenv
 ```
 
 #### Installing cosmostat in development mode
@@ -45,7 +45,7 @@ root directory:
 poetry install
 ```
 
-This command will install cosmostat and all of its dependencies in the ``cosmostatdev`` virtual
+This command will install cosmostat and all of its dependencies in the ``cosmostatenv`` virtual
 environment. We can have a look at all the installed packages in the environment by calling ``conda
 list``. For most packages, conda will indicate they were installed from [PyPI][pypi-url], since they
 were installed by poetry, not by conda.

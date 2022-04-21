@@ -46,7 +46,7 @@ RHOR0 = (
 # ------------------------------
 # \\\\  The default value of the physical densities \\\\\\\\
 # Planck's Cosmological parameters report
-# # # 1502.01589 (Cosmological parameters)
+# # # 1502.01589 (Cosmological parameters)
 # # # 1502.01590 (DE & MG)
 # physical densities for different species: baryon, rad, photons,cdm and
 # DE component
@@ -62,22 +62,20 @@ OMEGADEH2 = (REDUCED_H0 ** 2) * OMEGADE
 # fractional matter density
 OMEGAM0 = OMEGAB0 + OMEGACH2 / (REDUCED_H0 ** 2)
 
-# OMEGAK0 = 0
-
 RHOM0 = OMEGAM0 * RHOCR0
 RHODE0 = OMEGADE * RHOCR0
 
 # --------------------------------------------------------------------#
 #
-# DMATCMB: is the normalized matrix for R, l_A and omegab (with/without ns)
+# DMATCMB: is the normalized matrix for R, l_A , omega_b and n_s
 # Table 4 arXiv:1502.01590
 # Planck TT + lowP and marginalizing over A_L
 # --------------------------------------------------------------------#
 #
-DMATCMB_AL_3 = np.array(
+DMATCMB_AL_b = np.array(
     [[1.0, 0.64, -0.75], [0.64, 1.0, -0.55], [-0.75, -0.55, 1.0]]
 )
-ERRCMB_AL_3 = np.array([0.0088, 0.15, 0.00029])
+ERRCMB_AL_b = np.array([0.0088, 0.15, 0.00029])
 
 # Update feb 12 2020: add the full matrix  to include ns
 # 4x4 matrix
@@ -91,5 +89,5 @@ DMATCMB_AL_4 = np.array(
 )
 ERRCMB_AL_4 = np.array([0.0088, 0.15, 0.00029, 0.0072])
 
-COVMATCMB_3 = DMATCMB_AL_3 * ERRCMB_AL_3 * ERRCMB_AL_3[:, np.newaxis]
+COVMATCMB_b = DMATCMB_AL_b * ERRCMB_AL_b * ERRCMB_AL_b[:, np.newaxis]
 COVMATCMB_4 = DMATCMB_AL_4 * ERRCMB_AL_4 * ERRCMB_AL_4[:, np.newaxis]

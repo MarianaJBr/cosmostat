@@ -5,7 +5,7 @@ from functools import partial
 
 import numpy as np
 
-from cosmostat.constants_units import COVMATCMB_3
+from cosmostat.constants_units import COVMATCMB_b
 
 from .cosmology import Dataset, Model, Params, T_CosmologyFunc
 
@@ -49,7 +49,7 @@ def y_vec_cmb_base(
 def cmb_chi_square_base(params: Params, y_cmb_func: T_CosmologyFunc):
     """Standard chi-square function."""
     y_cmb = y_cmb_func(params)
-    covmat = COVMATCMB_3  # 4x4 matrix, including ns
+    covmat = COVMATCMB_b
     covmat_inv = np.linalg.inv(covmat)
     # base_TTlowP.covmat from Planck DE&MG 2015 Table 4
     return float(np.dot(y_cmb, np.dot(covmat_inv, y_cmb)))
