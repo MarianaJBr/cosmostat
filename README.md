@@ -166,6 +166,14 @@ cosmostat chi-square-grid CPL BAO --param w0 -3:1:100 --param w1 0:1:100 -o ./gr
 
 The program shows the grid evaluation progress. By default, it uses all of the system's available
 processes for evaluating the $\chi^2$ in parallel.
+## Developing the code
+If you want to develop the code, we suggest that you download it from the github webpage  
+
+https://github.com/MarianaJBr/cosmostat/
+
+Then you will enjoy all the feature of git repositories. You can even develop your own branch and get it merged to the public distribution.
+## Using the code
+You can use this software freely, provided that in your publications, you cite at least the paper "One parameterisation to fit them all" <http://arxiv.org/abs/2102.08561> but feel free to also cite "Modified gravity for surveys" <https://arxiv.org/abs/1804.04284> and "Probing a Steep EoS for Dark Energy with latest observations" <https://arxiv.org/abs/1708.08529>
 
 ## Authors
 
