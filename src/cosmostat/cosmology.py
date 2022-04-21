@@ -1,13 +1,12 @@
 """
-© Mariana Jaber, 2017(2018)(2019)
+© Mariana Jaber 2019
 
 This part of the program contains the basic cosmological parameters
 such as energy and physical densities for a Flat LCDM
 cosmology.
 
 It is based on Planck 2015 Cosmological Parameters report
-(arXiv:1502.01589) table 3 column 1:
-"Planck + TT + lowP".
+(arXiv:1502.01589) table 3 column 1: "Planck + TT + lowP".
 
 -----------------------------------------
 1502.01589 (Cosmological parameters)
@@ -34,7 +33,7 @@ QUAD_EPS_ABS = 1.49e-8
 
 
 # NOTE: Here, we use named-tuples to group the function parameters.
-#  The main reason for making this choice is because numba-compiled
+#  The main reason for making this choice is that numba-compiled
 #  functions can deal with named-tuples, but not with dataclasses (in
 #  a simple way). Of course, we could use dataclasses, since it is a better
 #  approach to structure the function parameters, but at some point, we would
@@ -71,34 +70,71 @@ T_CosmologyFunc = t.Union[
 
 
 def b_to_g(z: float, params: Params):
-    """Baryon-to-photon ratio as function of z"""
-    # return 3 * OMEGAB0 / (4 * OMEGAG0 * (1 + z))
+    """
+    Baryon-to-photon ratio as function of z
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function.
+        omegabh2, physical baryonic density
+    Returns
+    -------
+    b_to_g
+    """
     h = params.h
     omegabh2 = params.omegabh2
     return 3 * (omegabh2 / h ** 2) / (4 * OMEGAG0 * (1 + z))
 
 
 def hubble_flat_base(z: float, params: Params, f_dez: T_CosmologyFunc):
-    """Hubble function in terms of OmegaMatter flat universe."""
+    """
+    Hubble-function in terms of OmegaMatter for a flat universe.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    f_dez: integral of the equation of state w(z)
+    Returns
+    -------
+    H(z): array
+        Hubble function
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
     omega_m = (omegabh2 + omegach2) / h ** 2
     hubble_func = (
-        H0P
-        * h
-        * sqrt(
-            OMEGAR0 * (1 + z) ** 4
-            + omega_m * (1 + z) ** 3
-            + (1 - OMEGAR0 - omega_m) * f_dez(z, params)
-        )
+        H0P * h * sqrt(OMEGAR0 * (1 + z) ** 4
+                       + omega_m * (1 + z) ** 3
+                       + (1 - OMEGAR0 - omega_m) * f_dez(z, params)
+                       )
     )
     return hubble_func
 
 
 def ez_flat_base(z: float, params: Params, hubble_flat: T_CosmologyFunc):
-    """Normalized Hubble function E(z) = H(z)/H0 for the flat
-    Universe.
+    """
+    Normalized Hubble function E(z) = H(z)/H0 for the flat Universe.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    Returns
+    -------
+    H(z)/h0: array
+        Dimensionless Hubble function
     """
     h = params.h
     hz = hubble_flat(z, params)
@@ -107,7 +143,23 @@ def ez_flat_base(z: float, params: Params, hubble_flat: T_CosmologyFunc):
 
 
 def rho_de_base(z: float, params: Params, f_dez: T_CosmologyFunc):
-    """Volumetric energy density of the dark energy fluid component."""
+    """
+    Volumetric energy density of the dark energy fluid component.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    f_dez: integral of the equation of state w(z)
+    Returns
+    -------
+    rho_de: array
+        density of dark energy component as function of redshift
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
@@ -122,7 +174,10 @@ def r_s_integrand_base(
     _b_to_g: T_CosmologyFunc,
     hubble_flat: T_CosmologyFunc,
 ):
-    """ flat universe """
+    """
+    integrand for the sound horizon
+
+     """
     cs = 1 / sqrt(3 * (1 + _b_to_g(z, params)))
     return cs / hubble_flat(z, params)
 
@@ -139,7 +194,9 @@ def r_s_base(zeval: float, params: Params, r_s_integrand: T_CosmologyFunc):
 def d_vz_integrand_base(
     zp: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """"""
+    """
+    integrand for the dilation scale for rBAO size
+    """
     return 1 / hubble_flat(zp, params)
 
 
@@ -171,17 +228,15 @@ def r_bao_base(
 def d_ang_integrand_base(
     zp: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """Integrand for the angular diameter distance: dz/H(z)
-
-    hubble_func = H0p * h * sqrt(
-    OMEGAR0 * (1 + z) ** 4 + (omegabh2+omegach2)/h**2 * (1 + z) ** 3 +
-    (1 - OMEGAR0 - ((omegabh2+omegach2)/h**2)) * f_DEz(z, w_params))
+    """
+    Integrand for the angular diameter distance: dz/H(z)
     """
     return 1 / hubble_flat(zp, params)
 
 
 def d_ang_base(z: float, params: Params, d_ang_integrand: T_CosmologyFunc):
-    """Angular Diameter distance:
+    """
+    Angular Diameter distance:
     D_a(z) = c/(1+z)Int_0^z(dz'/H(z'))
     """
     # noinspection PyTupleAssignmentBalance,PyTypeChecker
@@ -194,14 +249,17 @@ def d_ang_base(z: float, params: Params, d_ang_integrand: T_CosmologyFunc):
 def distance_sne_integrand_base(
     z: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """"""
+    """
+    integrand for luminosity distance for supernovae
+    """
     return 1 / hubble_flat(z, params)
 
 
 def distance_sne_base(
     z: float, params: Params, distance_sne_integrand: T_CosmologyFunc
 ):
-    """Luminosity distance for SNe data.
+    """
+    Luminosity distance for SNe data.
 
     (1+z) * Int_0^z dz E^-1(z; args) where E(z) = H(z)/H0
     """
@@ -213,7 +271,8 @@ def distance_sne_base(
 
 
 def mu_sne_base(z: float, params: Params, distance_sne: T_CosmologyFunc):
-    """Modulus distance for SNe data: 5*log10 of dist_lum(z)
+    """
+    Modulus distance for SNe data: 5*log10 of dist_lum(z)
 
     5*Log10(distance_SNe in Mpc) + 25
     """
@@ -230,7 +289,9 @@ def hz_hubble_flat_base(
 
 
 def r_cmb_base(params: Params, d_ang: T_CosmologyFunc):
-    """R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c"""
+    """
+    R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
@@ -244,9 +305,10 @@ def r_cmb_base(params: Params, d_ang: T_CosmologyFunc):
 def theta_star_base(
     params: Params, r_s: T_CosmologyFunc, d_vz_integrand: T_CosmologyFunc
 ):
-    """Angular sound horizon at decoupling.
+    """
+    Angular sound horizon at decoupling.
 
-    Used to calculate l_A in Wang & Mukherjee (2007) 's matrix
+    Used to calculate l_A in Wang & Mukherjee (2007)'s matrix
     for the CMB compressed likelihood.
     :return: Theta(z_dec) = r_s(z_dec) / D_V(z_dec)
     """
@@ -259,9 +321,10 @@ def theta_star_base(
 
 
 def l_a_base(params: Params, theta_star: T_CosmologyFunc):
-    """Angular scale of the sound horizon at last scattering.
+    """
+    Angular scale of the sound horizon at last scattering.
     l_A:= pi/Theta_*
-    Used in Wang & Mukherjee (2007) 's matrix for the CMB compressed
+    Used in Wang & Mukherjee (2007)'s matrix for the CMB compressed
     likelihood. See section 5.1.6 of Planck 2015 DE & MG paper
     :return: l_A = pi/Theta(z*)
     """
@@ -272,14 +335,16 @@ def l_a_base(params: Params, theta_star: T_CosmologyFunc):
 def y_vec_cmb_base(
     params: Params, r_cmb: T_CosmologyFunc, l_a: T_CosmologyFunc
 ):
-    """Standard chi-square function."""
+    """
+    Standard chi-square function.
+    """
     omegabh2 = params.omegabh2
     y_cmb = np.array(
         [
             1.7382 - r_cmb(params),
             301.63 - l_a(params),
             0.02262 - omegabh2,
-            # 0.9741 - 0.97415
+            0.9741 - 0.97415
         ]
     )
     return y_cmb
