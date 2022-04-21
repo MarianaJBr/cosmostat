@@ -178,7 +178,7 @@ You can use this software freely, provided that in your publications, you cite a
 ## Authors
 
 * Mariana Jaber, [https://github.com/MarianaJBr][gh-mjaber], [INSPIRE Profile][inspire-mjaber]
-* Luisa Jaime, [INSPIRE Profile][inspire-ljaime]
+* Luisa Jaime, [https://github.com/luisajaime][gh-ljaime], [INSPIRE Profile][inspire-ljaime]
 * Gustavo Arciniega, [https://github.com/gustavoarciniega][gh-garciniega], [INSPIRE Profile][inspire-garciniega]
 * Omar Abel Rodríguez-López , [https://github.com/oarodriguez/][gh-oarodriguez]
 
@@ -191,6 +191,7 @@ You can use this software freely, provided that in your publications, you cite a
 [repo-url]: https://github.com/oarodriguez/cosmostat
 [gh-mjaber]: https://github.com/MarianaJBr
 [inspire-mjaber]: https://inspirehep.net/authors/1707914
+[gh-ljaime]: https://github.com/luisajaime
 [inspire-ljaime]: https://inspirehep.net/authors/1258854
 [gh-garciniega]: https://github.com/gustavoarciniega
 [inspire-garciniega]: https://inspirehep.net/authors/1272389
