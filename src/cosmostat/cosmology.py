@@ -30,7 +30,7 @@ DATASET_JOIN_NAME_SEP = "+"
 DATASET_JOIN_LABEL_SEP = " + "
 
 QUAD_EPS_ABS = 1.49e-8
-
+n_s = 0.97415
 
 # NOTE: Here, we use named-tuples to group the function parameters.
 #  The main reason for making this choice is that numba-compiled
@@ -339,12 +339,13 @@ def y_vec_cmb_base(
     Standard chi-square function.
     """
     omegabh2 = params.omegabh2
+
     y_cmb = np.array(
         [
             1.7382 - r_cmb(params),
             301.63 - l_a(params),
             0.02262 - omegabh2,
-            0.9741 - 0.97415
+            0.9741 - n_s
         ]
     )
     return y_cmb
