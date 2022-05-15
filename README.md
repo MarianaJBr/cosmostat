@@ -1,7 +1,6 @@
 # [cosmostat][repo-url]
 
-Python library to estimate chi-square constraints on cosmology models using
-background quantities.
+Python library to estimate chi-square constraints on cosmology models using background quantities.
 
 ## Installation 🧱
 
@@ -46,13 +45,55 @@ poetry install
 ```
 
 This command will install cosmostat and all of its dependencies in the ``cosmostatenv`` virtual
-environment. We can have a look at all the installed packages in the environment by calling ``conda
-list``. For most packages, conda will indicate they were installed from [PyPI][pypi-url], since they
-were installed by poetry, not by conda.
+environment. We can have a look at all the installed packages in the environment by
+calling ``conda list``. For most packages, conda will indicate they were installed
+from [PyPI][pypi-url], since they were installed by poetry, not by conda.
 
 In addition to installing cosmostat dependencies, poetry will install the cosmostat package (located
 in the ``src`` subdirectory) in development mode. Therefore, the cosmostat package will be
 importable from any python script or jupyter notebook as a regular python package.
+
+### Workaround for macOS M1-Powered Machines
+
+By May 2022, installing the dependencies on a macOS computer powered by the M1 processors may not be
+possible at first. This issue arises from the lack of ARM64 compiled packages for some dependencies:
+Pillow, and llvmlite, in [PyPI][pypi-url]. On the other hand, the above problem does not occur if we
+use conda to install the project dependencies from the [conda-forge][conda-forge-url] channel.
+However, if we use conda, we still face a challenge: how to install cosmostat in development mode?,
+since this process depends on executing the `poetry install` command (we will explain this problem
+with more detail some lines below).
+
+We propose the following workaround to install `cosmostat` dependencies and enable it in development
+mode.
+
+1. Install the project dependencies in a new conda environment using the `conda env create` command
+   with an environment definition file. This project has its own files,
+   `conda/env-specs/default.yml` for Linux and macOS, and `conda/env-specs/default-win.yml` for
+   Windows, with the dependency list, including both mandatory and development packages. We can
+   create the new environment and install every dependency with the following command:
+
+   ```shell
+   conda env create -f conda/env-specs/default.yml
+   ```
+
+   After executing the above command, we should have a new conda environment named `cosmostatenv`,
+   with everything needed to start developing.
+2. Remove the complete list of dependencies in the `pyproject.toml` file. More specifically, delete
+   all the dependencies under `tool.poetry.dependencies` and `tool.poetry.dev-dependencies`, except
+   for Python.
+3. Execute `poetry install`. This command will install cosmostat in development mode, but it will
+   not install any other dependency.
+
+This workaround is needed because poetry will try to install the project dependencies as specified
+in the `poetry.lock` file, so it may remove any packages previously installed by conda to match the
+lock file contents. After we remove any packages in the `pyproject.toml` file (except for Python),
+poetry will not touch any of the packages previously installed by conda. **NOTE**: this method will
+install Python 3.8 as the interpreter.
+
+The above procedure has a significant drawback: it makes the development process non-reproducible.
+The reason for this is that conda lacks a mechanism to lock package versions, that is, to generate a
+lock file with a similar purpose to the `poetry.lock` file. Then, every time we create a new
+environment using `conda env create -f`, the package versions may change among different executions.
 
 ## Command Line Interface
 
@@ -115,8 +156,8 @@ can define the fitting procedure as follows:
 * We want ``w1`` to lie in the interval ``[0, 1]``. We pass the option
   ``--param w1 -0:1``.
 * We have to fix ``h`` to ``0.5``. We use ``--param h 0.5``.
-* Parameters ``omegabh2`` and ``omegach2`` keep their default values. We can
-  omit them from the command.
+* Parameters ``omegabh2`` and ``omegach2`` keep their default values. We can omit them from the
+  command.
 * The best-fit result should be saved in a HDF5 file named
   ``./best-fit-cpl#1.h5`` in the current working directory. We pass the option
   ``-o ./best-fit-cpl#1.h5``.
@@ -166,33 +207,55 @@ cosmostat chi-square-grid CPL BAO --param w0 -3:1:100 --param w1 0:1:100 -o ./gr
 
 The program shows the grid evaluation progress. By default, it uses all of the system's available
 processes for evaluating the $\chi^2$ in parallel.
+
 ## Developing the code
-If you want to develop the code, we suggest that you download it from the github webpage  
+
+If you want to develop the code, we suggest that you download it from the github webpage
 
 https://github.com/MarianaJBr/cosmostat/
 
-Then you will enjoy all the feature of git repositories. You can even develop your own branch and get it merged to the public distribution.
+Then you will enjoy all the feature of git repositories. You can even develop your own branch and
+get it merged to the public distribution.
+
 ## Using the code
-You can use this software freely, provided that in your publications, you cite at least the paper "One parameterisation to fit them all" <http://arxiv.org/abs/2102.08561> but feel free to also cite "Modified gravity for surveys" <https://arxiv.org/abs/1804.04284> and "Probing a Steep EoS for Dark Energy with latest observations" <https://arxiv.org/abs/1708.08529>
+
+You can use this software freely, provided that in your publications, you cite at least the paper "
+One parameterisation to fit them all" <http://arxiv.org/abs/2102.08561> but feel free to also cite "
+Modified gravity for surveys" <https://arxiv.org/abs/1804.04284> and "Probing a Steep EoS for Dark
+Energy with latest observations" <https://arxiv.org/abs/1708.08529>
 
 ## Authors
 
 * Mariana Jaber, [https://github.com/MarianaJBr][gh-mjaber], [INSPIRE Profile][inspire-mjaber]
 * Luisa Jaime, [https://github.com/luisajaime][gh-ljaime], [INSPIRE Profile][inspire-ljaime]
-* Gustavo Arciniega, [https://github.com/gustavoarciniega][gh-garciniega], [INSPIRE Profile][inspire-garciniega]
+* Gustavo Arciniega, [https://github.com/gustavoarciniega][gh-garciniega]
+  , [INSPIRE Profile][inspire-garciniega]
 * Omar Abel Rodríguez-López , [https://github.com/oarodriguez/][gh-oarodriguez]
 
 <!-- Links -->
 
 [miniconda-site]: https://docs.conda.io/en/latest/miniconda.html
+
 [conda-guide]: https://docs.conda.io/projects/conda/en/latest/user-guide/index.html
+
 [poetry-url]: https://python-poetry.org/
+
 [pypi-url]: https://pypi.org/
+
+[conda-forge-url]: https://conda-forge.org/
+
 [repo-url]: https://github.com/oarodriguez/cosmostat
+
 [gh-mjaber]: https://github.com/MarianaJBr
+
 [inspire-mjaber]: https://inspirehep.net/authors/1707914
+
 [gh-ljaime]: https://github.com/luisajaime
+
 [inspire-ljaime]: https://inspirehep.net/authors/1258854
+
 [gh-garciniega]: https://github.com/gustavoarciniega
+
 [inspire-garciniega]: https://inspirehep.net/authors/1272389
+
 [gh-oarodriguez]: https://github.com/oarodriguez
