@@ -220,7 +220,7 @@ get it merged to the public distribution.
 ## Using the code
 
 You can use this software freely, provided that in your publications, you cite at least the paper "
-One parameterisation to fit them all" <http://arxiv.org/abs/2102.08561> but feel free to also cite "
+A single parameterization for dark energy and modified gravity models" <http://arxiv.org/abs/2102.08561> but feel free to also cite "
 Modified gravity for surveys" <https://arxiv.org/abs/1804.04284> and "Probing a Steep EoS for Dark
 Energy with latest observations" <https://arxiv.org/abs/1708.08529>
 
