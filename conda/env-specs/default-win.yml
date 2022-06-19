@@ -1,24 +1,29 @@
 # Default conda environment.
 # Use conda env create -f default.yml to create this development environment.
-name: cosmostat-dev
+name: cosmostatenv
 # We need some packages from conda-forge.
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.7
+  - python=3.8
   - numpy
   - scipy
   - matplotlib
   - numba
-  - h5py
-  - jupyter
-  - notebook
-  - jupyterlab
-  - dask
-  - toolz
-  - pytest
   - click
-  - dataclasses
+  - dask
+  - h5py
   - rich
+  - toolz
+  - jupyter
+  - jupyterlab
+  - notebook
+  - pytest
+  - black
+  - isort
+  - flake8
+  - mypy
+  - pydocstyle
+  - dataclasses
   - m2w64-jq

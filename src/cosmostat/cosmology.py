@@ -1,13 +1,12 @@
 """
-© Mariana Jaber, 2017(2018)(2019)
+© Mariana Jaber 2019
 
 This part of the program contains the basic cosmological parameters
 such as energy and physical densities for a Flat LCDM
 cosmology.
 
 It is based on Planck 2015 Cosmological Parameters report
-(arXiv:1502.01589) table 3 column 1:
-"Planck + TT + lowP".
+(arXiv:1502.01589) table 3 column 1: "Planck + TT + lowP".
 
 -----------------------------------------
 1502.01589 (Cosmological parameters)
@@ -31,10 +30,10 @@ DATASET_JOIN_NAME_SEP = "+"
 DATASET_JOIN_LABEL_SEP = " + "
 
 QUAD_EPS_ABS = 1.49e-8
-
+n_s = 0.97415
 
 # NOTE: Here, we use named-tuples to group the function parameters.
-#  The main reason for making this choice is because numba-compiled
+#  The main reason for making this choice is that numba-compiled
 #  functions can deal with named-tuples, but not with dataclasses (in
 #  a simple way). Of course, we could use dataclasses, since it is a better
 #  approach to structure the function parameters, but at some point, we would
@@ -71,34 +70,71 @@ T_CosmologyFunc = t.Union[
 
 
 def b_to_g(z: float, params: Params):
-    """Baryon-to-photon ratio as function of z"""
-    # return 3 * OMEGAB0 / (4 * OMEGAG0 * (1 + z))
+    """
+    Baryon-to-photon ratio as function of z
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function.
+        omegabh2, physical baryonic density
+    Returns
+    -------
+    b_to_g
+    """
     h = params.h
     omegabh2 = params.omegabh2
     return 3 * (omegabh2 / h ** 2) / (4 * OMEGAG0 * (1 + z))
 
 
 def hubble_flat_base(z: float, params: Params, f_dez: T_CosmologyFunc):
-    """Hubble function in terms of OmegaMatter flat universe."""
+    """
+    Hubble-function in terms of OmegaMatter for a flat universe.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    f_dez: integral of the equation of state w(z)
+    Returns
+    -------
+    H(z): array
+        Hubble function
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
     omega_m = (omegabh2 + omegach2) / h ** 2
     hubble_func = (
-        H0P
-        * h
-        * sqrt(
-            OMEGAR0 * (1 + z) ** 4
-            + omega_m * (1 + z) ** 3
-            + (1 - OMEGAR0 - omega_m) * f_dez(z, params)
-        )
+        H0P * h * sqrt(OMEGAR0 * (1 + z) ** 4
+                       + omega_m * (1 + z) ** 3
+                       + (1 - OMEGAR0 - omega_m) * f_dez(z, params)
+                       )
     )
     return hubble_func
 
 
 def ez_flat_base(z: float, params: Params, hubble_flat: T_CosmologyFunc):
-    """Normalized Hubble function E(z) = H(z)/H0 for the flat
-    Universe.
+    """
+    Normalized Hubble function E(z) = H(z)/H0 for the flat Universe.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    Returns
+    -------
+    H(z)/h0: array
+        Dimensionless Hubble function
     """
     h = params.h
     hz = hubble_flat(z, params)
@@ -107,7 +143,23 @@ def ez_flat_base(z: float, params: Params, hubble_flat: T_CosmologyFunc):
 
 
 def rho_de_base(z: float, params: Params, f_dez: T_CosmologyFunc):
-    """Volumetric energy density of the dark energy fluid component."""
+    """
+    Volumetric energy density of the dark energy fluid component.
+    Parameters
+    ----------
+    z: float
+        redshift.
+    params: named tuple
+        cosmological parameters varying in this function
+        h, little hubble parameter
+        omegabh2, physical baryonic density
+        omegach2, physical cold dark matter density
+    f_dez: integral of the equation of state w(z)
+    Returns
+    -------
+    rho_de: array
+        density of dark energy component as function of redshift
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
@@ -122,7 +174,10 @@ def r_s_integrand_base(
     _b_to_g: T_CosmologyFunc,
     hubble_flat: T_CosmologyFunc,
 ):
-    """ flat universe """
+    """
+    integrand for the sound horizon
+
+     """
     cs = 1 / sqrt(3 * (1 + _b_to_g(z, params)))
     return cs / hubble_flat(z, params)
 
@@ -139,7 +194,9 @@ def r_s_base(zeval: float, params: Params, r_s_integrand: T_CosmologyFunc):
 def d_vz_integrand_base(
     zp: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """"""
+    """
+    integrand for the dilation scale for rBAO size
+    """
     return 1 / hubble_flat(zp, params)
 
 
@@ -171,17 +228,15 @@ def r_bao_base(
 def d_ang_integrand_base(
     zp: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """Integrand for the angular diameter distance: dz/H(z)
-
-    hubble_func = H0p * h * sqrt(
-    OMEGAR0 * (1 + z) ** 4 + (omegabh2+omegach2)/h**2 * (1 + z) ** 3 +
-    (1 - OMEGAR0 - ((omegabh2+omegach2)/h**2)) * f_DEz(z, w_params))
+    """
+    Integrand for the angular diameter distance: dz/H(z)
     """
     return 1 / hubble_flat(zp, params)
 
 
 def d_ang_base(z: float, params: Params, d_ang_integrand: T_CosmologyFunc):
-    """Angular Diameter distance:
+    """
+    Angular Diameter distance:
     D_a(z) = c/(1+z)Int_0^z(dz'/H(z'))
     """
     # noinspection PyTupleAssignmentBalance,PyTypeChecker
@@ -194,14 +249,17 @@ def d_ang_base(z: float, params: Params, d_ang_integrand: T_CosmologyFunc):
 def distance_sne_integrand_base(
     z: float, params: Params, hubble_flat: T_CosmologyFunc
 ):
-    """"""
+    """
+    integrand for luminosity distance for supernovae
+    """
     return 1 / hubble_flat(z, params)
 
 
 def distance_sne_base(
     z: float, params: Params, distance_sne_integrand: T_CosmologyFunc
 ):
-    """Luminosity distance for SNe data.
+    """
+    Luminosity distance for SNe data.
 
     (1+z) * Int_0^z dz E^-1(z; args) where E(z) = H(z)/H0
     """
@@ -213,7 +271,8 @@ def distance_sne_base(
 
 
 def mu_sne_base(z: float, params: Params, distance_sne: T_CosmologyFunc):
-    """Modulus distance for SNe data: 5*log10 of dist_lum(z)
+    """
+    Modulus distance for SNe data: 5*log10 of dist_lum(z)
 
     5*Log10(distance_SNe in Mpc) + 25
     """
@@ -230,7 +289,9 @@ def hz_hubble_flat_base(
 
 
 def r_cmb_base(params: Params, d_ang: T_CosmologyFunc):
-    """R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c"""
+    """
+    R(z*) = np.sqrt(Omega_M*H0*H0) D_ang(z*)/c
+    """
     h = params.h
     omegabh2 = params.omegabh2
     omegach2 = params.omegach2
@@ -244,9 +305,10 @@ def r_cmb_base(params: Params, d_ang: T_CosmologyFunc):
 def theta_star_base(
     params: Params, r_s: T_CosmologyFunc, d_vz_integrand: T_CosmologyFunc
 ):
-    """Angular sound horizon at decoupling.
+    """
+    Angular sound horizon at decoupling.
 
-    Used to calculate l_A in Wang & Mukherjee (2007) 's matrix
+    Used to calculate l_A in Wang & Mukherjee (2007)'s matrix
     for the CMB compressed likelihood.
     :return: Theta(z_dec) = r_s(z_dec) / D_V(z_dec)
     """
@@ -259,9 +321,10 @@ def theta_star_base(
 
 
 def l_a_base(params: Params, theta_star: T_CosmologyFunc):
-    """Angular scale of the sound horizon at last scattering.
+    """
+    Angular scale of the sound horizon at last scattering.
     l_A:= pi/Theta_*
-    Used in Wang & Mukherjee (2007) 's matrix for the CMB compressed
+    Used in Wang & Mukherjee (2007)'s matrix for the CMB compressed
     likelihood. See section 5.1.6 of Planck 2015 DE & MG paper
     :return: l_A = pi/Theta(z*)
     """
@@ -272,14 +335,17 @@ def l_a_base(params: Params, theta_star: T_CosmologyFunc):
 def y_vec_cmb_base(
     params: Params, r_cmb: T_CosmologyFunc, l_a: T_CosmologyFunc
 ):
-    """Standard chi-square function."""
+    """
+    Standard chi-square function.
+    """
     omegabh2 = params.omegabh2
+
     y_cmb = np.array(
         [
             1.7382 - r_cmb(params),
             301.63 - l_a(params),
             0.02262 - omegabh2,
-            # 0.9741 - 0.97415
+            0.9741 - n_s
         ]
     )
     return y_cmb
@@ -287,7 +353,7 @@ def y_vec_cmb_base(
 
 @dataclass
 class Functions(metaclass=ABCMeta):
-    """Represent the cosmological model functions."""
+    """A collection of cosmological model functions."""
 
     # Cosmological functions
     wz: T_CosmologyFunc = field(init=False, default=None, repr=False)
@@ -309,7 +375,7 @@ class Functions(metaclass=ABCMeta):
     l_a: T_CosmologyFunc = field(init=False, default=None, repr=False)
 
     def __post_init__(self):
-        """"""
+        """Post-initialization steps."""
         # Build functions.
         self.wz = self._make_wz_func()
         self.f_dez = self._make_f_dez_func()
@@ -329,12 +395,12 @@ class Functions(metaclass=ABCMeta):
 
     @abstractmethod
     def _make_wz_func(self) -> T_CosmologyFunc:
-        """"""
+        """Build the function for the equation of state."""
         pass
 
     @abstractmethod
     def _make_f_dez_func(self) -> T_CosmologyFunc:
-        """"""
+        """Build the function for the integral of the equation of state."""
         pass
 
     def _make_hubble_flat_func(self):
@@ -441,7 +507,18 @@ class Functions(metaclass=ABCMeta):
 
 @dataclass(frozen=True)
 class Model:
-    """Represent a cosmological model."""
+    """Represent a cosmological model.
+
+    Parameters
+    ----------
+    name: str
+        The model name.
+    params_cls: Type[Params]
+        The class that defines the model cosmological parameters.
+    functions: Functions
+        An object that contains the cosmological functions for the
+        current model.
+    """
 
     # The model name.
     name: str
@@ -455,7 +532,13 @@ class Model:
 
 @dataclass
 class DatasetJoin(t.Iterable):
-    """Represent the union of several datasets."""
+    """Represent the union of several datasets.
+
+    Parameters
+    ----------
+    datasets: List[Dataset]
+        A list of datasets to join as a single superset.
+    """
 
     datasets: t.List[Dataset]
 
@@ -469,30 +552,39 @@ class DatasetJoin(t.Iterable):
         self.datasets = sorted(self.datasets, key=_name)
 
     @classmethod
-    def from_name(cls, name: str):
-        """"""
+    def from_name(cls, name: str) -> "DatasetJoin":
+        """Get the dataset with the given name.
+
+        Parameters
+        ----------
+        name: str
+            The dataset name.
+        """
         names = name.split(DATASET_JOIN_NAME_SEP)
         datasets = [get_dataset(label) for label in names]
         return cls(datasets)
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """Dataset name."""
         return DATASET_JOIN_NAME_SEP.join(
             [dataset.name for dataset in self.datasets]
         )
 
     @property
-    def label(self):
+    def label(self) -> str:
+        """Dataset label."""
         return DATASET_JOIN_LABEL_SEP.join(
             [dataset.label for dataset in self.datasets]
         )
 
     @property
-    def length(self):
-        """Number of data items."""
+    def length(self) -> int:
+        """Number of data items in this dataset."""
         return sum([dataset.length for dataset in self.datasets])
 
     def __iter__(self):
+        """Iterable interface for the current instance."""
         return iter(self.datasets)
 
 
@@ -507,41 +599,71 @@ _DATASET_JOINS: t.Dict[str, DatasetJoin] = {}
 
 
 def register_model(model: Model):
-    """Register a new model."""
+    """Register a new model.
+
+    Parameters
+    ----------
+    model: str
+        A cosmological model to register.
+    """
     if model.name in _EOS_MODELS:
         raise KeyError(f"model '{model.name}' has been already registered")
     _EOS_MODELS[model.name] = model
 
 
-def get_model(name: str):
-    """Return an existing model."""
+def get_model(name: str) -> Model:
+    """Retrieve a registered model.
+
+    Parameters
+    ----------
+    name: str
+        The model name.
+    """
     return _EOS_MODELS[name]
 
 
-def registered_models():
-    """Return a list with the registered models."""
+def registered_models() -> t.List[str]:
+    """Return a list with the registered models names."""
     return list(_EOS_MODELS)
 
 
 def register_dataset(dataset: Dataset):
-    """Register a new dataset."""
+    """Register a new dataset.
+
+    Parameters
+    ----------
+    dataset: Dataset
+        The dataset we want to register.
+    """
     if dataset.name in _DATASETS:
         raise KeyError(f"dataset '{dataset.name}' has been already registered")
     _DATASETS[dataset.name] = dataset
 
 
-def get_dataset(name: str):
-    """Return an existing dataset."""
+def get_dataset(name: str) -> Dataset:
+    """Retrieve a registered dataset.
+
+    Parameters
+    ----------
+    name: str
+        The dataset name.
+    """
     return _DATASETS[name]
 
 
-def registered_datasets():
-    """Return a list with the registered datasets."""
+def registered_datasets() -> t.List[str]:
+    """Return a list with the registered datasets names."""
     return list(_DATASETS)
 
 
 def register_dataset_join(dataset_join: DatasetJoin):
-    """Register a new dataset join."""
+    """Register a new dataset join.
+
+    Parameters
+    ----------
+    dataset_join: DatasetJoin
+        The DatasetJoin instance we want to register.
+    """
     if dataset_join.name in _DATASET_JOINS:
         raise KeyError(
             f"dataset join '{dataset_join.name}' has been "
@@ -550,11 +672,17 @@ def register_dataset_join(dataset_join: DatasetJoin):
     _DATASET_JOINS[dataset_join.name] = dataset_join
 
 
-def get_dataset_join(name: str):
-    """Return an existing dataset join."""
+def get_dataset_join(name: str) -> DatasetJoin:
+    """Retrieve a registered dataset join.
+
+    Parameters
+    ----------
+    name: str
+        The name of the dataset join we want to retrieve.
+    """
     return _DATASET_JOINS[name]
 
 
-def registered_dataset_joins():
-    """Return a list with the registered dataset join."""
+def registered_dataset_joins() -> t.List[str]:
+    """Return a list with the registered dataset join names."""
     return list(_DATASET_JOINS)
